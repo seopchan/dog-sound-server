@@ -1,0 +1,58 @@
+swagger: "2.0"
+info:
+  title: hwp-manager
+  description: hwp-manager test
+  version: 0.0.1
+#host: localhost:3002
+schemes:
+  - http
+  - https
+
+tags:
+  - name: work
+    description: 문제 처리 포맷입니다.
+
+securityDefinitions:
+  jwt:
+    type: "basic"
+
+  bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+
+security:
+  - jwt: []
+  - bearer: []
+
+paths:
+  /question/work:
+    post:
+      sumary: "단일 문제 처리를 실행합니다."
+      description: "source : layout key와 question key의 조합입니다.(JSON String)\ntarget : 생성할 파일의 key입니다."
+      tags:
+        - work
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            properties:
+              workGroupId:
+                type: string
+              callbackUrl:
+                type: string
+
+      responses:
+        200:
+          description: "taskKey와 S3에 업로드된 문제의 key를 내려줍니다."
+          schema:
+            properties:
+              taskKey:
+                type: string
+        400:
+          description: "Bad Request : 요청이 잘못되었습니다."
+        404:
+          description: "Not Found : S3에 파일이 없습니다."
+        500:
+          description: "Unexpected Exception : 알 수 없는 에러입니다."
