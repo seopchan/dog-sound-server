@@ -26,9 +26,12 @@ class WorkService {
 
     async countWork(workGroup: WorkGroup): Promise<number> {
         const count = await WorkGroup.count({
-            where: {
-                workGroupId: workGroup.workGroupId
-            }
+            include: [{
+                model: Work,
+                where: {
+                    workGroupId: workGroup.workGroupId
+                }
+            }]
         });
 
         return count as number;

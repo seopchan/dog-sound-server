@@ -70,7 +70,6 @@ class WorkGroupService {
 
         return;
     }
-
 }
 
 export const workGroupService = new WorkGroupService();
