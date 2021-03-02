@@ -19,7 +19,7 @@ export class Work extends Model<Work> implements WorkSchema {
         super(schema, options);
     }
 
-    @PrimaryKey
+    // @PrimaryKey
     @Column
     workId: string;
 

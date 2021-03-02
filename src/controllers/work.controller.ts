@@ -24,13 +24,14 @@ export const work = async(req: Request, res: Response, next: NextFunction) => {
     });
 
     let allKeys: string[] = [];
-    allKeys = await getAllKeys(workGroupId, s3, allKeys);
+    const bucket = `${process.env.QUESTIONS_BUCKET}`;
+    allKeys = await getAllKeys(workGroupId, s3, allKeys, bucket);
     if (allKeys.length == 0) {
         return res.sendNotFoundError();
     }
 
-    const workGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
-    const taskKey = workGroup.taskKey;
+    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
+    const taskKey = questionWorkGroup.taskKey;
 
     // 즉각 응답
     res.sendRs({
@@ -39,15 +40,15 @@ export const work = async(req: Request, res: Response, next: NextFunction) => {
         }
     });
 
-    const works = await workService.createWorks(workGroup, allKeys);
+    const questionWorks = await workService.createWorks(questionWorkGroup, allKeys);
 
-    await executeLambda(workGroup, works, allKeys);
+    await executeLambda(questionWorkGroup, questionWorks, allKeys);
 };
 
-async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], params?: any) {
+async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], bucket: string, params?: any) {
     if(!params) {
         params = {
-            Bucket: `${process.env.QUESTIONS_BUCKET}`,
+            Bucket: bucket,
             Prefix: workGroupId
         };
     }
@@ -61,7 +62,7 @@ async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], pa
     }
     if (response.NextContinuationToken) {
         params.ContinuationToken = response.NextContinuationToken;
-        allKeys = await getAllKeys(workGroupId, s3, allKeys, params);
+        allKeys = await getAllKeys(workGroupId, s3, allKeys, bucket, params);
     }
 
     return allKeys;
@@ -74,22 +75,23 @@ async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: strin
 
     for (const key of allKeys) {
         const work = works[allKeys.indexOf(key)];
-        const source = {
-            layout: layout,
-            question: [key]
-        };
-        const payload = {
-            source: JSON.stringify(source),
-            target: key
 
+        const dynamicContent = {
+            data: null
         };
+        const set = {
+            layout: layout,
+            source : `["${key}"]`,
+            dynamicContents : JSON.stringify(dynamicContent),
+        };
+        const payload = [set];
         const params = {
             FunctionName: `${process.env.SINGLE_MODULE_URL}`,
             InvocationType: "RequestResponse",
             Payload: JSON.stringify(payload)
         };
 
-        semaphore.take(function() {
+        semaphore.take(function () {
             const lambda = new AWS.Lambda();
             lambda.invoke(params, async function (err, data) {
                 let otherError = undefined;
