@@ -77,7 +77,7 @@ async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: strin
         const work = works[allKeys.indexOf(key)];
 
         const dynamicContent = {
-            data: null
+            data: "null"
         };
         const set = {
             layout: layout,
