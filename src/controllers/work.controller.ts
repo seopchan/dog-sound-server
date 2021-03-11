@@ -12,6 +12,7 @@ import Semaphore from "semaphore";
 export const work = async(req: Request, res: Response, next: NextFunction) => {
     const workGroupId = req.body.workGroupId as string;
     const callbackUrl = req.body.callbackUrl as string;
+    const dynamicContents = req.body.dynamicContents as JSON;
 
     if (!paramUtil.checkParam(workGroupId, callbackUrl)) {
         return res.sendBadRequestError();
@@ -42,7 +43,7 @@ export const work = async(req: Request, res: Response, next: NextFunction) => {
 
     const questionWorks = await workService.createWorks(questionWorkGroup, allKeys);
 
-    await executeLambda(questionWorkGroup, questionWorks, allKeys);
+    await executeLambda(questionWorkGroup, questionWorks, allKeys, dynamicContents);
 };
 
 async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], bucket: string, params?: any) {
@@ -68,7 +69,7 @@ async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], bu
     return allKeys;
 }
 
-async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: string[]) {
+async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: string[], dynamicContents: JSON) {
     const layout = `${process.env.LAYOUT_FILE}`;
     const totalWorkCount = await workService.countWork(workGroup);
     const semaphore = Semaphore(10);
@@ -76,13 +77,13 @@ async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: strin
     for (const key of allKeys) {
         const work = works[allKeys.indexOf(key)];
 
-        const dynamicContent = {
-            data: "null"
-        };
+        // const dynamicContent = {
+        //     data: "null"
+        // };
         const set = {
             layout: layout,
             source : `["${key}"]`,
-            dynamicContents : JSON.stringify(dynamicContent),
+            dynamicContents : JSON.stringify(dynamicContents),
         };
         const payload = [set];
         const params = {
