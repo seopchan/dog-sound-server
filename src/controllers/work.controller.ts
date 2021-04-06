@@ -8,11 +8,12 @@ import {transactionManager} from "../models/DB";
 import {Work} from "../models/table/work/work.model";
 import {WorkGroup} from "../models/table/work/workgroup.model";
 import Semaphore from "semaphore";
+import {JsonObject} from "swagger-ui-express";
 
 export const work = async(req: Request, res: Response, next: NextFunction) => {
     const workGroupId = req.body.workGroupId as string;
     const callbackUrl = req.body.callbackUrl as string;
-    const dynamicContents = req.body.dynamicContents as JSON;
+    const dynamicContents = req.body.dynamicContents as JsonObject;
 
     if (!paramUtil.checkParam(workGroupId, callbackUrl)) {
         return res.sendBadRequestError();
@@ -69,7 +70,7 @@ async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], bu
     return allKeys;
 }
 
-async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: string[], dynamicContents: JSON) {
+async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: string[], dynamicContents: JsonObject) {
     const layout = `${process.env.LAYOUT_FILE}`;
     const totalWorkCount = await workService.countWork(workGroup);
     const semaphore = Semaphore(10);
@@ -77,9 +78,11 @@ async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: strin
     for (const key of allKeys) {
         const work = works[allKeys.indexOf(key)];
 
-        // const dynamicContent = {
-        //     data: "null"
-        // };
+        if (dynamicContents == null) {
+            dynamicContents = {
+                data : null
+            };
+        }
         const set = {
             layout: layout,
             source : `["${key}"]`,
