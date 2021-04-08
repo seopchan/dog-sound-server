@@ -88,11 +88,11 @@ async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: strin
             source : `["${key}"]`,
             dynamicContents : JSON.stringify(dynamicContents),
         };
-        const payload = [set];
+        // const payload = [set];
         const params = {
             FunctionName: `${process.env.SINGLE_MODULE_URL}`,
             InvocationType: "RequestResponse",
-            Payload: JSON.stringify(payload)
+            Payload: JSON.stringify(set)
         };
 
         semaphore.take(function () {
