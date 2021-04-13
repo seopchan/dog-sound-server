@@ -79,10 +79,9 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
 export const makePaper = async(req: Request, res: Response, next: NextFunction) => {
     const sources = req.body.sources as string[];
     const dynamicContents = req.body.dynamicContents as JsonObject;
-    const workType = req.body.workType as WorkType;
     const callbackUrl = req.body.callbackUrl as string;
 
-    if (!paramUtil.checkParam(sources, workType)) {
+    if (!paramUtil.checkParam(sources)) {
         return res.sendBadRequestError();
     }
 
@@ -100,7 +99,7 @@ export const makePaper = async(req: Request, res: Response, next: NextFunction) 
     const questionWork = await workService.createWork(questionWorkGroup, sources[0]);
 
     try {
-        await workService.executeMakePaper(questionWorkGroup, questionWork, sources, dynamicContents, workType);
+        await workService.executeMakePaper(questionWorkGroup, questionWork, sources, dynamicContents);
     } catch (e) {
         return res.sendBadRequestError(e);
     }

@@ -53,11 +53,6 @@ paths:
                 type: string
               callbackUrl:
                 type: string
-              dynamicContents:
-                type: object
-                properties:
-                  data:
-                    type: string
 
       responses:
         200:
@@ -76,7 +71,7 @@ paths:
   /question/questionSplit:
     post:
       summary: "hwp 파일의 문제들을 split합니다."
-      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\answerFileKey: 나눌 정답 파일의 Key입니다.\ncallbackUrl: 결과를 return할 주소입니다."
+      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\nanswerFileKey: 나눌 정답 파일의 Key입니다.\ncallbackUrl: 결과를 return할 주소입니다."
       tags:
         - work
       parameters:
@@ -109,7 +104,7 @@ paths:
   /question/makePaper:
     post:
       summary: "문제 list를 시험지로 만듭니다."
-      description: "questionFileKeys: string[] \n"
+      description: "questionFileKeys: 시험지로 만들 문제들의 Key의 list입니다.\ndynamicContents: 표지에 들어갈 내용입니다. data: 한글 누름틀 이름, string: 내용 입니다.\n"
       tags:
         - work
       parameters:
@@ -118,12 +113,15 @@ paths:
           required: true
           schema:
             properties:
-              questionFileKey:
-                type: string
-              answerFileKey:
-                type: string
-              callbackUrl:
-                type: string
+              questionFileKeys:
+                type: array
+                item:
+                  type: string
+              dynamicContents:
+                type: object
+                properties:
+                  data:
+                    type: string
 
       responses:
         200:

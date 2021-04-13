@@ -136,8 +136,9 @@ class WorkService {
         });
     }
 
-    async executeMakePaper(workGroup: WorkGroup, work: Work, sources: string[], dynamicContents: JsonObject, workType: WorkType) {
+    async executeMakePaper(workGroup: WorkGroup, work: Work, sources: string[], dynamicContents: JsonObject) {
         const layoutFileKey = `${process.env.LAYOUT_FILE}`;
+        const workType = WorkType.MAKE_PAPER;
 
         const set = {
             layoutFileKey: layoutFileKey,
