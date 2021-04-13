@@ -1,5 +1,5 @@
 {
-    "name": "Gongback",
+    "name": "HwpManager-Gateway",
     "version": "0.1.0",
     "description": "A starting point for Node.js express apps with TypeScript",
     "author": "HAMA",
@@ -86,6 +86,7 @@
         "@types/pug": "^2.0.4",
         "@types/request": "^2.48.3",
         "@types/request-promise": "^4.1.44",
+        "@types/semaphore": "^1.1.1",
         "@types/shelljs": "^0.8.5",
         "@types/supertest": "^2.0.8",
         "@types/swagger-ui-express": "^4.1.2",

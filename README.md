@@ -1,9 +1,12 @@
+# hwp-manager-gateway
+API Server에서 hwp 모듈에 요청을 보내기 위한 gateway입니다.
+
+# API-DOCS
+http://hwp-manager-staging.ap-northeast-2.elasticbeanstalk.com/api-docs/
+
 # 구조 
 Gongback API 참조  
 https://github.com/HAMAZIP-dev/api-server
-
-# hwp-manager-gateway
-API Server에서 hwp 모듈에 요청을 보내기 위한 gateway입니다.
 
 # 요청
 1. work
