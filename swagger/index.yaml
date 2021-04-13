@@ -26,10 +26,21 @@ security:
   - bearer: []
 
 paths:
-  /question/work:
+  /question/hwpMetadataExtract:
     post:
-      sumary: "단일 문제 처리를 실행합니다."
-      description: "source : layout key와 question key의 조합입니다.(JSON String)\ntarget : 생성할 파일의 key입니다."
+      summary: "hwp 파일의 metadata를 추출합니다."
+      description: "workGroupId : metadata를 분석할 파일들의 S3 Key의 prefix입니다.\ncallbackUrl : taskKey를 return할 주소입니다.\nAWS SNS에 아래와 같은 형태로 callback됩니다.\n
+      \t{\n
+        \t\tsecretKey: string,
+        \t\tmetadatas: {
+          \t\t\tEdgeDetect: {
+            \t\t\t\theight: integer,
+            \t\t\t\tthumbnail: string}
+          \t\t\t},
+          \t\t\tTextConvert: string
+        \t\t}
+      \t}\n"
+
       tags:
         - work
       parameters:
@@ -42,6 +53,11 @@ paths:
                 type: string
               callbackUrl:
                 type: string
+              dynamicContents:
+                type: object
+                properties:
+                  data:
+                    type: string
 
       responses:
         200:
@@ -49,6 +65,72 @@ paths:
           schema:
             properties:
               taskKey:
+                type: string
+        400:
+          description: "Bad Request : 요청이 잘못되었습니다."
+        404:
+          description: "Not Found : S3에 파일이 없습니다."
+        500:
+          description: "Unexpected Exception : 알 수 없는 에러입니다."
+
+  /question/questionSplit:
+    post:
+      summary: "hwp 파일의 문제들을 split합니다."
+      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\answerFileKey: 나눌 정답 파일의 Key입니다.\ncallbackUrl: 결과를 return할 주소입니다."
+      tags:
+        - work
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            properties:
+              questionFileKey:
+                type: string
+              answerFileKey:
+                type: string
+              callbackUrl:
+                type: string
+
+      responses:
+        200:
+          description: "split하여 업로드된 파일들의 Key의 prefix를 내려줍니다."
+          schema:
+            properties:
+              workGroupId:
+                type: string
+        400:
+          description: "Bad Request : 요청이 잘못되었습니다."
+        404:
+          description: "Not Found : S3에 파일이 없습니다."
+        500:
+          description: "Unexpected Exception : 알 수 없는 에러입니다."
+
+  /question/makePaper:
+    post:
+      summary: "문제 list를 시험지로 만듭니다."
+      description: "questionFileKeys: string[] \n"
+      tags:
+        - work
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            properties:
+              questionFileKey:
+                type: string
+              answerFileKey:
+                type: string
+              callbackUrl:
+                type: string
+
+      responses:
+        200:
+          description: "생성된 시험지의 Key를 내려줍니다."
+          schema:
+            properties:
+              paperKey:
                 type: string
         400:
           description: "Bad Request : 요청이 잘못되었습니다."
