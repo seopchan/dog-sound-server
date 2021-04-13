@@ -2,15 +2,11 @@ import {NextFunction, Request, Response} from "express";
 import AWS from "aws-sdk";
 import {workGroupService} from "../service/workGroup.service";
 import {workService} from "../service/work.service";
-import {WorkStatus} from "../models/schema/work/workgroup.schema";
 import {paramUtil} from "../util/param";
-import {transactionManager} from "../models/DB";
-import {Work} from "../models/table/work/work.model";
-import {WorkGroup} from "../models/table/work/workgroup.model";
-import Semaphore from "semaphore";
 import {JsonObject} from "swagger-ui-express";
+import {WorkType} from "../models/schema/work/workgroup.schema";
 
-export const work = async(req: Request, res: Response, next: NextFunction) => {
+export const hwpMetadataExtract = async(req: Request, res: Response, next: NextFunction) => {
     const workGroupId = req.body.workGroupId as string;
     const callbackUrl = req.body.callbackUrl as string;
     const dynamicContents = req.body.dynamicContents as JsonObject;
@@ -27,7 +23,7 @@ export const work = async(req: Request, res: Response, next: NextFunction) => {
 
     let allKeys: string[] = [];
     const bucket = `${process.env.QUESTIONS_BUCKET}`;
-    allKeys = await getAllKeys(workGroupId, s3, allKeys, bucket);
+    allKeys = await workService.getAllKeys(workGroupId, s3, allKeys, bucket);
     if (allKeys.length == 0) {
         return res.sendNotFoundError();
     }
@@ -44,86 +40,85 @@ export const work = async(req: Request, res: Response, next: NextFunction) => {
 
     const questionWorks = await workService.createWorks(questionWorkGroup, allKeys);
 
-    await executeLambda(questionWorkGroup, questionWorks, allKeys, dynamicContents);
+    try {
+        await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, allKeys, dynamicContents);
+    } catch (e) {
+        return res.sendBadRequestError(e);
+    }
 };
 
-async function getAllKeys(workGroupId: string, s3: AWS.S3, allKeys: string[], bucket: string, params?: any) {
-    if(!params) {
-        params = {
-            Bucket: bucket,
-            Prefix: workGroupId
-        };
+export const questionSplit = async(req: Request, res: Response, next: NextFunction) => {
+    const questionFileKey = req.body.questionFileKey as string;
+    const answerFileKey = req.body.answerFileKey as string;
+    const callbackUrl = req.body.callbackUrl as string;
+
+    if (!paramUtil.checkParam(questionFileKey, answerFileKey, callbackUrl)) {
+        return res.sendBadRequestError();
     }
 
-    const response = await s3.listObjectsV2(params).promise();
-    if(response.Contents) {
-        response.Contents.forEach( content => {
-            const key = content.Key as string;
-            allKeys.push(key);
-        } );
+    const workGroupId = await getWorkGroupId();
+
+    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
+    const taskKey = questionWorkGroup.taskKey;
+
+    res.sendRs({
+        data: {
+            taskKey: taskKey
+        }
+    });
+
+    const questionWork = await workService.createWork(questionWorkGroup, questionFileKey);
+
+    try {
+        await workService.executeQuestionSplit(questionWorkGroup, questionWork, questionFileKey, answerFileKey);
+    } catch (e) {
+        return res.sendBadRequestError(e);
     }
-    if (response.NextContinuationToken) {
-        params.ContinuationToken = response.NextContinuationToken;
-        allKeys = await getAllKeys(workGroupId, s3, allKeys, bucket, params);
+};
+
+export const makePaper = async(req: Request, res: Response, next: NextFunction) => {
+    const sources = req.body.sources as string[];
+    const dynamicContents = req.body.dynamicContents as JsonObject;
+    const workType = req.body.workType as WorkType;
+    const callbackUrl = req.body.callbackUrl as string;
+
+    if (!paramUtil.checkParam(sources, workType)) {
+        return res.sendBadRequestError();
     }
 
-    return allKeys;
+    const workGroupId = await getWorkGroupId();
+
+    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
+    const taskKey = questionWorkGroup.taskKey;
+
+    res.sendRs({
+        data: {
+            taskKey: taskKey
+        }
+    });
+
+    const questionWork = await workService.createWork(questionWorkGroup, sources[0]);
+
+    try {
+        await workService.executeMakePaper(questionWorkGroup, questionWork, sources, dynamicContents, workType);
+    } catch (e) {
+        return res.sendBadRequestError(e);
+    }
+    
+};
+
+async function getWorkGroupId(): Promise<string> {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = ("0" + (1 + date.getMonth())).slice(-2);
+    const day = ("0" + date.getDate()).slice(-2);
+
+    return (year + "-" + month + "-" + day+ "/" + await uuidv4()) as string;
 }
 
-async function executeLambda(workGroup: WorkGroup, works: Work[], allKeys: string[], dynamicContents: JsonObject) {
-    const layout = `${process.env.LAYOUT_FILE}`;
-    const totalWorkCount = await workService.countWork(workGroup);
-    const semaphore = Semaphore(10);
-
-    for (const key of allKeys) {
-        const work = works[allKeys.indexOf(key)];
-
-        if (dynamicContents == null) {
-            dynamicContents = {
-                data : null
-            };
-        }
-        const set = {
-            layout: layout,
-            source : `["${key}"]`,
-            dynamicContents : JSON.stringify(dynamicContents),
-        };
-        // const payload = [set];
-        const params = {
-            FunctionName: `${process.env.SINGLE_MODULE_URL}`,
-            InvocationType: "RequestResponse",
-            Payload: JSON.stringify(set)
-        };
-
-        semaphore.take(function () {
-            const lambda = new AWS.Lambda();
-            lambda.invoke(params, async function (err, data) {
-                let otherError = undefined;
-                if (typeof data.Payload == "string") {
-                    otherError = JSON.parse(data.Payload).errorMessage;
-                }
-
-                if (err || otherError) {
-                    await workService.updateStatus(work, WorkStatus.FAIL);
-                    const workGroupStatus = await workGroupService.checkStatus(workGroup);
-                    if (workGroupStatus == WorkStatus.WAIT) {
-                        await transactionManager.runOnTransaction(null, async (t) => {
-                            const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
-                            await workGroupService.callbackToApiServer(updateWorkGroup);
-                        });
-                    }
-                } else if (data) {
-                    await workService.updateStatus(work, WorkStatus.SUCCESS);
-                    const isSuccess = await workService.checkIsSuccess(workGroup, totalWorkCount);
-                    if (isSuccess) {
-                        await transactionManager.runOnTransaction(null, async (t) => {
-                            const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS);
-                            await workGroupService.callbackToApiServer(updateWorkGroup);
-                        });
-                    }
-                }
-                semaphore.leave();
-            });
-        });
-    }
+async function uuidv4(): Promise<string> {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c == "x" ? r : (r & 0x3 | 0x8);
+        return v.toString(16) as string;
+    });
 }

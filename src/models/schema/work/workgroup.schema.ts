@@ -9,6 +9,10 @@ export enum CallbackStatus {
     RETRY = "RETRY",
     FAIL = "FAIL"
 }
+export enum WorkType {
+    SINGLE_QUESTION_PROCESS = "SINGLE_QUESTION_PROCESS",
+    MAKE_PAPER = "MAKE_PAPER"
+}
 
 export interface WorkgroupAttributes {
     workGroupId?: string;

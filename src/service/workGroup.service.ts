@@ -40,7 +40,7 @@ class WorkGroupService {
         return status;
     }
 
-    async callbackToApiServer(workGroup: WorkGroup) {
+    async callbackToApiServer(workGroup: WorkGroup, responses?: JSON[]) {
         const workGroupId = workGroup.workGroupId as string;
         const callbackUrl = workGroup.callbackUrl as string;
         const taskKey = workGroup.taskKey as string;
@@ -48,14 +48,7 @@ class WorkGroupService {
         const secretKey = process.env.SECRET_KEY as string;
         const data = {
             secretKey: secretKey,
-            files: [{
-                questionFileUrl: workGroupId,
-                questionImage: "/gongback/question/Image",
-                answerFileUrl: "/gongback/answer/file",
-                answerImage: "/gongback/answer/Image",
-                questionContent: "/gongback/question/Content",
-                answerContent: "/gongback/answer/Content"
-            }]
+            metadatas: responses
         };
 
         return axios.post(

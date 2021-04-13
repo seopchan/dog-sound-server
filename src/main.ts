@@ -50,7 +50,9 @@ main.get("/", function(req, res) {
 /**
  * routes.
  */
-main.post("/question/work", _(questionController.work));
+main.post("/question/hwpMetadataExtract", _(questionController.hwpMetadataExtract));
+main.post("/question/questionSplit", _(questionController.questionSplit));
+main.post("/question/makePaper", _(questionController.makePaper));
 
 
 /*** API DOCS
