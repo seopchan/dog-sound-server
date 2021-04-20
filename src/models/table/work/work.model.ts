@@ -19,17 +19,18 @@ export class Work extends Model<Work> implements WorkSchema {
         super(schema, options);
     }
 
-    // @PrimaryKey
+    @PrimaryKey
     @Column
     workId: string;
+
+    @PrimaryKey
+    @ForeignKey(() => WorkGroup)
+    @Column
+    workGroupId: string;
 
     @AllowNull(false)
     @Column
     status: string;
-
-    @ForeignKey(() => WorkGroup)
-    @Column
-    workGroupId: string;
 
     @BelongsTo(() => WorkGroup, "workGroupId")
     workGroup: WorkGroup;

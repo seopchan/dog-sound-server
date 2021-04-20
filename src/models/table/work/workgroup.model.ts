@@ -24,15 +24,11 @@ export class WorkGroup extends Model<WorkGroup> implements WorkGroupSchema {
 
     @AllowNull(false)
     @Column
-    taskKey: string;
+    workKey: string;
 
     @AllowNull(false)
     @Column
     status: string;
-
-    @AllowNull(false)
-    @Column
-    callbackUrl: string;
 
     @AllowNull(false)
     @Column
