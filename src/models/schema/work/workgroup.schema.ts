@@ -16,18 +16,16 @@ export enum WorkType {
 
 export interface WorkgroupAttributes {
     workGroupId?: string;
-    taskKey?: string;
+    workKey?: string;
     status?: string;
-    callbackUrl?: string;
     callbackStatus?: string;
     retryCount?: number;
 }
 
 export interface WorkGroupSchema extends WorkgroupAttributes {
     workGroupId: string;
-    taskKey: string;
+    workKey: string;
     status: string;
-    callbackUrl: string;
     callbackStatus: string;
     retryCount: number;
 }
