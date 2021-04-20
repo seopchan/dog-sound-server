@@ -4,14 +4,14 @@ import {workGroupService} from "../service/workGroup.service";
 import {workService} from "../service/work.service";
 import {paramUtil} from "../util/param";
 import {JsonObject} from "swagger-ui-express";
-import {WorkType} from "../models/schema/work/workgroup.schema";
+import {checkingUtil} from "../util/checking";
+import {transactionManager} from "../models/DB";
+import {MetadataResult, Result} from "../service/innerService/work.inner.service";
 
 export const hwpMetadataExtract = async(req: Request, res: Response, next: NextFunction) => {
     const workGroupId = req.body.workGroupId as string;
-    const callbackUrl = req.body.callbackUrl as string;
-    const dynamicContents = req.body.dynamicContents as JsonObject;
 
-    if (!paramUtil.checkParam(workGroupId, callbackUrl)) {
+    if (!paramUtil.checkParam(workGroupId)) {
         return res.sendBadRequestError();
     }
 
@@ -21,30 +21,67 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         region: process.env.AWS_REGION
     });
 
-    let allKeys: string[] = [];
     const bucket = `${process.env.QUESTIONS_BUCKET}`;
-    allKeys = await workService.getAllKeys(workGroupId, s3, allKeys, bucket);
-    if (allKeys.length == 0) {
+
+    const questionWorkGroupId = workGroupId+"/question";
+    const answerWorkGroupId = workGroupId+"/answer";
+    const metadataWorkGroupId  = workGroupId+"/metadata";
+
+    const questionKeys = await workService.getAllKeys(questionWorkGroupId, s3, bucket);
+    const answerKeys = await workService.getAllKeys(answerWorkGroupId, s3, bucket);
+    const metadataKeys = await workService.getAllKeys(metadataWorkGroupId, s3, bucket);
+
+    if (checkingUtil.checkIsNull(questionKeys, answerKeys, metadataKeys)) {
         return res.sendNotFoundError();
     }
 
-    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
-    const taskKey = questionWorkGroup.taskKey;
+    const [questionWorkGroup, answerWorkGroup, workKey] = await transactionManager.runOnTransaction(null, async (t) => {
+        const questionWorkGroup = await workGroupService.createWorkGroup(questionWorkGroupId, t);
+        const workKey = questionWorkGroup.workKey;
+        const answerWorkGroup = await workGroupService.createWorkGroup(answerWorkGroupId, t, workKey);
+
+        return [questionWorkGroup, answerWorkGroup, workKey];
+    });
 
     // 즉각 응답
     res.sendRs({
         data: {
-            taskKey: taskKey
+            workKey: workKey
         }
     });
 
-    const questionWorks = await workService.createWorks(questionWorkGroup, allKeys);
+    const [questionWorks, answerWorks] = await transactionManager.runOnTransaction(null, async (t) => {
+        const questionWorks = await workService.createWorks(questionWorkGroup, questionKeys, t);
+        const answerWorks = await workService.createWorks(answerWorkGroup, answerKeys, t);
 
-    try {
-        await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, allKeys, dynamicContents);
-    } catch (e) {
-        return res.sendBadRequestError(e);
-    }
+        return [questionWorks, answerWorks];
+    });
+
+    const metadataResponse: MetadataResult[] = await workService.getMetadataList(metadataKeys, s3, bucket);
+    const questionExtractResponse: string[] = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
+    const answerExtractResponse: string[] = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks, answerKeys);
+
+    /**
+     * 1. 일반문제 -> 문제+답+메타데이터
+     * 2. 공통문제 -> 문제+답+메타데이터+그룹ID+WC
+     * 3. 공통문제_WC -> pass
+     */
+    const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse);
+    const message = {
+        data : data,
+        workKey : workKey
+    };
+
+    const params = {
+        Message: JSON.stringify(message),
+        TopicArn: `${process.env.EXTRACT_METADATA}`
+    };
+
+    const snsResponse = new AWS.SNS({apiVersion: "2010-03-31"}).publish(params).promise();
+
+    snsResponse.then().catch(function(err) {
+        throw new Error(err);
+    });
 };
 
 export const questionSplit = async(req: Request, res: Response, next: NextFunction) => {
@@ -58,12 +95,12 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
 
     const workGroupId = await getWorkGroupId();
 
-    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
-    const taskKey = questionWorkGroup.taskKey;
+    const questionWorkGroup = await workGroupService.createWorkGroup(workGroupId);
+    const workKey = questionWorkGroup.workKey;
 
     res.sendRs({
         data: {
-            taskKey: taskKey
+            workKey: workKey
         }
     });
 
@@ -77,29 +114,28 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
 };
 
 export const makePaper = async(req: Request, res: Response, next: NextFunction) => {
-    const sources = req.body.sources as string[];
+    const questionFileKeys = req.body.questionFileKeys as string[];
     const dynamicContents = req.body.dynamicContents as JsonObject;
-    const callbackUrl = req.body.callbackUrl as string;
 
-    if (!paramUtil.checkParam(sources)) {
+    if (!paramUtil.checkParam(questionFileKeys)) {
         return res.sendBadRequestError();
     }
 
     const workGroupId = await getWorkGroupId();
 
-    const questionWorkGroup = await workGroupService.createWorkGroup(callbackUrl, workGroupId);
-    const taskKey = questionWorkGroup.taskKey;
+    const questionWorkGroup = await workGroupService.createWorkGroup(workGroupId);
+    const workKey = questionWorkGroup.workKey;
 
     res.sendRs({
         data: {
-            taskKey: taskKey
+            workKey: workKey
         }
     });
 
-    const questionWork = await workService.createWork(questionWorkGroup, sources[0]);
+    const questionWork = await workService.createWork(questionWorkGroup, questionFileKeys[0]);
 
     try {
-        await workService.executeMakePaper(questionWorkGroup, questionWork, sources, dynamicContents);
+        await workService.executeMakePaper(questionWorkGroup, questionWork, questionFileKeys, dynamicContents);
     } catch (e) {
         return res.sendBadRequestError(e);
     }
