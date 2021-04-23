@@ -15,7 +15,7 @@ https://github.com/HAMAZIP-dev/api-server
     * 여러 문제가 있는 하나의 hwp파일에서 각 문제들을 나눠 각각 hwp로 만든다.
     
 # Staging Server
-http://hwp-manager-staging.ap-northeast-2.elasticbeanstalk.com/
+https://st-hwp.gongback.com/
 
 # Api-Docs
-http://hwp-manager-staging.ap-northeast-2.elasticbeanstalk.com/api-docs/
+https://st-hwp.gongback.com/api-docs/
