@@ -67,7 +67,7 @@ class WorkService {
                     source : key,
                 };
                 const params = {
-                    FunctionName: `${process.env.SINGLE_MODULE_URL}`,
+                    FunctionName: `${process.env.QUESTION_EXTRACTOR_LAMBDA}`,
                     InvocationType: "RequestResponse",
                     Payload: JSON.stringify(set)
                 };
@@ -135,7 +135,7 @@ class WorkService {
             answerFileKey: answerFileKey
         };
         const params = {
-            FunctionName: `${process.env.QUESTION_SPLIT}`,
+            FunctionName: `${process.env.QUESTION_SPLIT_LAMBDA}`,
             InvocationType: "RequestResponse",
             Payload: JSON.stringify(set)
         };
@@ -178,7 +178,7 @@ class WorkService {
         };
 
         const params = {
-            FunctionName: `${process.env.QUESTION_SPLIT}`,
+            FunctionName: `${process.env.QUESTION_SPLIT_LAMBDA}`,
             InvocationType: "RequestResponse",
             Payload: JSON.stringify(set)
         };
