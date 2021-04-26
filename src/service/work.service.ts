@@ -64,7 +64,10 @@ class WorkService {
 
                 const set = {
                     layout: layoutFileKey,
-                    source : key,
+                    source: {
+                        key: key,
+                        height: null
+                    }
                 };
                 const params = {
                     FunctionName: `${process.env.QUESTION_EXTRACTOR_LAMBDA}`,
@@ -84,10 +87,17 @@ class WorkService {
                                 if (workGroupStatus == WorkStatus.WAIT) {
                                     await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
                                 }
-                                semaphore!.capacity = 0;
-                                semaphore = null;
 
-                                return reject(new Error(otherError || err));
+                                if (semaphore != null) {
+                                    semaphore!.capacity = 0;
+                                    semaphore = null;
+                                }
+
+                                if (err) {
+                                    return reject(new Error(JSON.stringify(err)));
+                                } else if (otherError) {
+                                    return reject(new Error(responseData.Payload));
+                                }
                             } else if (responseData && responseData.Payload) {
                                 responses.push(responseData.Payload);
                                 const updateWorkGroup = await transactionManager.runOnTransaction(null, async (t) => {

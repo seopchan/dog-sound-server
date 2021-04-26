@@ -29,7 +29,7 @@ main.use(passport.initialize());
 main.use(errorHandler());
 
 async function syncData() {
-    console.log("!!!");
+    console.log("syncData");
 
 }
 
