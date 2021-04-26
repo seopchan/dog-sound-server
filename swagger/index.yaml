@@ -29,7 +29,7 @@ paths:
   /question/hwpMetadataExtract:
     post:
       summary: "hwp 파일의 metadata를 추출합니다."
-      description: "workGroupId : metadata를 분석할 파일들의 S3 Key의 prefix입니다.\ncallbackUrl : taskKey를 return할 주소입니다.\nAWS SNS에 아래와 같은 형태로 callback됩니다.\n
+      description: "workGroupId : metadata를 분석할 파일들의 S3 Key의 prefix입니다.\nAWS SNS에 아래와 같은 형태로 callback됩니다.\n
       ```typescript
       message : {
         \tdata : Result
@@ -86,10 +86,10 @@ paths:
 
       responses:
         200:
-          description: "taskKey와 S3에 업로드된 문제의 key를 내려줍니다."
+          description: "workKey를 내려줍니다."
           schema:
             properties:
-              taskKey:
+              workKey:
                 type: string
         400:
           description: "Bad Request : 요청이 잘못되었습니다."
@@ -101,7 +101,7 @@ paths:
   /question/questionSplit:
     post:
       summary: "hwp 파일의 문제들을 split합니다."
-      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\nanswerFileKey: 나눌 정답 파일의 Key입니다.\ncallbackUrl: 결과를 return할 주소입니다."
+      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\nanswerFileKey: 나눌 정답 파일의 Key입니다.\n"
       tags:
         - work
       parameters:
@@ -113,8 +113,6 @@ paths:
               questionFileKey:
                 type: string
               answerFileKey:
-                type: string
-              callbackUrl:
                 type: string
 
       responses:
@@ -145,7 +143,7 @@ paths:
             properties:
               questionFileKeys:
                 type: array
-                item:
+                items:
                   type: string
               dynamicContents:
                 type: object
