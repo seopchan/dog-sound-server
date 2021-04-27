@@ -11,6 +11,7 @@ import {workGroupService} from "./workGroup.service";
 import {transactionManager} from "../models/DB";
 import cloneDeep from "lodash.clonedeep";
 import {MetadataResult, Result, FileMetadata, workInnerService, WC, Metadata} from "./innerService/work.inner.service";
+import {LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
 
 class WorkService {
     async getAllKeys(workGroupId: string, s3: AWS.S3, bucket: string, params?: any): Promise<string[]> {
@@ -52,9 +53,9 @@ class WorkService {
      *
      * 6. metadata를 AWS SNS에 보낼 message의 data에 넣어줌
     */
-    async executeQuestionMetadataExtract(workGroup: WorkGroup, works: Work[], allKeys: string[]): Promise<string[]> {
+    async executeQuestionMetadataExtract(workGroup: WorkGroup, works: Work[], allKeys: string[], outerTransaction?: Transaction): Promise<string[]> {
         return new Promise(async (resolve, reject) => {
-            const layoutFileKey = `${process.env.LAYOUT_FILE}`;
+            const layoutFileKey = LAYOUT_FILE;
             const totalWorkCount = await workService.countWork(workGroup);
             let semaphore: Semaphore.Semaphore | null = Semaphore(10);
             const responses: string[] = [];
@@ -70,7 +71,7 @@ class WorkService {
                     }
                 };
                 const params = {
-                    FunctionName: `${process.env.QUESTION_EXTRACTOR_LAMBDA}`,
+                    FunctionName: `${QUESTION_EXTRACTOR_LAMBDA}`,
                     InvocationType: "RequestResponse",
                     Payload: JSON.stringify(set)
                 };
@@ -82,11 +83,13 @@ class WorkService {
                         if (typeof responseData.Payload == "string") {
                             otherError = JSON.parse(responseData.Payload).errorMessage || null;
                             if (err || otherError) {
-                                await workService.updateStatus(work, WorkStatus.FAIL);
-                                const workGroupStatus = await workGroupService.checkStatus(workGroup);
-                                if (workGroupStatus == WorkStatus.WAIT) {
-                                    await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
-                                }
+                                await transactionManager.runOnTransaction(null, async(t) => {
+                                    await workService.updateStatus(work, WorkStatus.FAIL, t);
+                                    const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
+                                    if (workGroupStatus == WorkStatus.WAIT) {
+                                        await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
+                                    }
+                                });
 
                                 if (semaphore != null) {
                                     semaphore!.capacity = 0;
@@ -101,10 +104,10 @@ class WorkService {
                             } else if (responseData && responseData.Payload) {
                                 responses.push(responseData.Payload);
                                 const updateWorkGroup = await transactionManager.runOnTransaction(null, async (t) => {
-                                    await workService.updateStatus(work, WorkStatus.SUCCESS);
-                                    const isSuccess = await workService.checkIsSuccess(workGroup, totalWorkCount);
+                                    await workService.updateStatus(work, WorkStatus.SUCCESS, t);
+                                    const isSuccess = await workService.checkIsSuccess(workGroup, totalWorkCount, t);
                                     if (isSuccess) {
-                                        const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS);
+                                        const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS, t);
                                         return updateWorkGroup;
                                     }
                                 });
@@ -114,16 +117,19 @@ class WorkService {
                                     return resolve(responses);
                                 }
                             }
-                            if (semaphore && semaphore.capacity != 0) {
+                            if (semaphore) {
                                 semaphore.leave();
                             }
                             return;
                         } else {
-                            await workService.updateStatus(work, WorkStatus.FAIL);
-                            const workGroupStatus = await workGroupService.checkStatus(workGroup);
-                            if (workGroupStatus == WorkStatus.WAIT) {
-                                await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
-                            }
+                            await transactionManager.runOnTransaction(null, async (t) => {
+                                await workService.updateStatus(work, WorkStatus.FAIL, t);
+                                const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
+                                if (workGroupStatus == WorkStatus.WAIT) {
+                                    await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
+                                }
+                            });
+
                             semaphore!.capacity = 0;
                             semaphore = null;
 
@@ -136,7 +142,7 @@ class WorkService {
     }
 
     async executeQuestionSplit(workGroup: WorkGroup, work: Work, questionFileKey: string, answerFileKey: string) {
-        const layoutFileKey = `${process.env.LAYOUT_FILE}`;
+        const layoutFileKey = LAYOUT_FILE;
         const responses: JSON[] = [];
 
         const set = {
@@ -145,7 +151,7 @@ class WorkService {
             answerFileKey: answerFileKey
         };
         const params = {
-            FunctionName: `${process.env.QUESTION_SPLIT_LAMBDA}`,
+            FunctionName: QUESTION_SPLIT_LAMBDA as string,
             InvocationType: "RequestResponse",
             Payload: JSON.stringify(set)
         };
@@ -159,7 +165,7 @@ class WorkService {
 
             if (err || otherError) {
                 await transactionManager.runOnTransaction(null, async (t) => {
-                    await workService.updateStatus(work, WorkStatus.FAIL);
+                    await workService.updateStatus(work, WorkStatus.FAIL, t);
                     const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
                     //TODO AWS SNS PUB
                 });
@@ -177,7 +183,7 @@ class WorkService {
     }
 
     async executeMakePaper(workGroup: WorkGroup, work: Work, sources: string[], dynamicContents: JsonObject) {
-        const layoutFileKey = `${process.env.LAYOUT_FILE}`;
+        const layoutFileKey = LAYOUT_FILE as string;
         const workType = WorkType.MAKE_PAPER;
 
         const set = {
@@ -188,7 +194,7 @@ class WorkService {
         };
 
         const params = {
-            FunctionName: `${process.env.QUESTION_SPLIT_LAMBDA}`,
+            FunctionName: QUESTION_SPLIT_LAMBDA as string,
             InvocationType: "RequestResponse",
             Payload: JSON.stringify(set)
         };
@@ -266,20 +272,21 @@ class WorkService {
         return count as number;
     }
 
-    async updateStatus(work: Work, status: WorkStatus): Promise<Work> {
+    async updateStatus(work: Work, status: WorkStatus, outerTransaction?: Transaction): Promise<Work> {
         return await work.update({
-            status: status
-        });
+            status: status,
+        }, {transaction: outerTransaction});
     }
 
-    async checkIsSuccess(workGroup: WorkGroup, totalWorkCount: number): Promise<boolean> {
+    async checkIsSuccess(workGroup: WorkGroup, totalWorkCount: number, outerTransaction: Transaction): Promise<boolean> {
         const successCount = await Work.count({
             where: {
                 [Op.and] : [
                     {workGroupId: workGroup.workGroupId} ,
                     {status: { [Op.like]: WorkStatus.SUCCESS } }
                 ]
-            }
+            },
+            transaction: outerTransaction
         });
 
         if (successCount == totalWorkCount) {
@@ -341,7 +348,7 @@ class WorkService {
         });
     }
 
-    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[]): Promise<Result[]> {
+    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[], outerTransaction?: Transaction): Promise<Result[]> {
         const data: Result[] = [];
 
         try {
@@ -373,7 +380,7 @@ class WorkService {
                             wc = await workInnerService.mappingWC(questionExtractResponse, questionFileName, questionKey);
                         }
 
-                        const metadata: Metadata = await workInnerService.getMetadata(questionMetadata, questionFileMetadata, answerFileMetadata);
+                        const metadata: Metadata = await workInnerService.getMetadata(questionMetadata, questionFileMetadata, answerFileMetadata, );
                         const result: Result = await workInnerService.getResult(questionGroupKey, wc, questionKey, answerKey, metadata);
 
                         data.push(result);

@@ -3,6 +3,7 @@ import {WorkGroup} from "../models/table/work/workgroup.model";
 import {errorStore} from "../util/ErrorStore";
 import {transactionManager} from "../models/DB";
 import {Transaction} from "sequelize";
+import {paramUtil} from "../util/param";
 
 class WorkGroupService {
     async createWorkGroup(workGroupId: string, outerTransaction?: Transaction, workKey?: string): Promise<WorkGroup> {
@@ -48,29 +49,26 @@ class WorkGroupService {
         });
     }
 
-    // async callbackToApiServer(workGroup: WorkGroup, responses?: JSON[]) {
-    //     const workGroupId = workGroup.workGroupId as string;
-    //     const callbackUrl = workGroup.callbackUrl as string;
-    //     const workKey = workGroup.workKey as string;
-    //     const workGroupStatus = workGroup.status as string;
-    //     const secretKey = process.env.SECRET_KEY as string;
-    //     const data = {
-    //         secretKey: secretKey,
-    //         metadatas: responses
-    //     };
-    //
-    //     return axios.post(
-    //         `${callbackUrl}${workKey}?workGroupStatus=${workGroupStatus}`, data
-    //     ).then(async (data) => {
-    //         await workGroupInnerService.updateCallbackStatus(workGroup, CallbackStatus.SUCCESS);
-    //         return {data, error:null};
-    //     }).catch(async (error) => {
-    //         await workGroupInnerService.updateCallbackStatus(workGroup, CallbackStatus.RETRY);
-    //         return {data:null, error};
-    //     });
-    //
-    //     return;
-    // }
+    async getWorkGroupStatus(workGroupId: string, outerTransaction?: Transaction): Promise<WorkStatus | null> {
+        const invalidParam = !paramUtil.checkParam(workGroupId);
+
+        if (invalidParam) {
+            throw new Error(errorStore.INVALID_PARAM);
+        }
+
+        const workGroup: WorkGroup | null = await WorkGroup.findOne({
+            where: {
+                workGroupId: workGroupId,
+            },
+            transaction: outerTransaction
+        });
+
+        if (workGroup) {
+            return workGroup.status as WorkStatus;
+        }
+
+        return null;
+    }
 }
 
 export const workGroupService = new WorkGroupService();

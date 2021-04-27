@@ -1,4 +1,6 @@
 import cloneDeep from "lodash.clonedeep";
+import {Transaction} from "sequelize";
+import {QUESTIONS_BUCKET} from "../../util/secrets";
 
 export interface MetadataResult {
     metadata: string;
@@ -6,6 +8,8 @@ export interface MetadataResult {
 }
 
 export interface Result {
+    bucket: string;
+
     questionKey: string;
     answerKey: string;
     metadata: Metadata;
@@ -69,7 +73,7 @@ export default class WorkInnerService {
         return questionMetadata as QuestionMetadata;
     }
 
-    async mappingAnswerMetadata(answerExtractResponse: string[], questionFileName: string): Promise<[string, FileMetadata]> {
+    async mappingAnswerMetadata(answerExtractResponse: string[], questionFileName: string, outerTransaction?: Transaction): Promise<[string, FileMetadata]> {
         const answerExtractedData: string | undefined = answerExtractResponse.find((answerExtractedData) => {
             const aEDObject = JSON.parse(answerExtractedData);
             const answerFileName = aEDObject.key.split("/").pop();
@@ -78,15 +82,6 @@ export default class WorkInnerService {
         });
 
         if (answerExtractedData == undefined) {
-            const answerExtractedData: string | undefined = answerExtractResponse.find((answerExtractedData) => {
-                const aEDObject = JSON.parse(answerExtractedData);
-                const answerFileName = aEDObject.key.split("/").pop();
-
-                console.log(questionFileName + " " + answerFileName);
-
-                return questionFileName == answerFileName;
-            });
-
             throw new Error("Question And Answer Are Not Mapped");
         }
 
@@ -148,6 +143,8 @@ export default class WorkInnerService {
 
     async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata): Promise<Result> {
         return {
+            bucket: QUESTIONS_BUCKET,
+
             questionGroupKey: questionGroupKey,
             wc: wc,
 
