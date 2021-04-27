@@ -1,4 +1,3 @@
-import {NextFunction} from "express";
 import {paramUtil} from "../util/param";
 import {Result} from "./innerService/work.inner.service";
 import {Transaction} from "sequelize";
