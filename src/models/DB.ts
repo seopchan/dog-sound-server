@@ -4,6 +4,7 @@ import {Transaction} from "sequelize";
 import {Work} from "./table/work/work.model";
 import {WorkGroup} from "./table/work/workgroup.model";
 import {DATABASE, DB_URL, PASSWORD, USERNAME} from "../util/secrets";
+import {ResultData} from "./table/work/resultdata.model";
 
 logger.debug(`connect with ${DB_URL}`);
 logger.debug(`username ${USERNAME}`);
@@ -11,6 +12,11 @@ logger.debug(`password ${PASSWORD}`);
 logger.debug(`database ${DATABASE}`);
 
 export const db =  new Sequelize({
+    pool: {
+        max: 20,
+        acquire: 10000
+
+    },
     host: DB_URL,
     database: DATABASE,
     dialect: "mysql",
@@ -18,7 +24,8 @@ export const db =  new Sequelize({
     password: PASSWORD,
     models: [
         Work,
-        WorkGroup
+        WorkGroup,
+        ResultData
     ]
 });
 
