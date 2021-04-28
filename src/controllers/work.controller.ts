@@ -112,6 +112,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
             questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
             answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks, answerKeys);
+            console.log("EXECUTE END")
         } catch (e) {
             console.log(e);
             await SNSNotification(String(e));
@@ -127,7 +128,9 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         let data: Result[];
         try {
             data = await transactionManager.runOnTransaction(null, async (t) => {
+                console.log("Mapping")
                 const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
+                console.log("CREATE RESULT DATA")
                 await resultDataService.createResultData(workKey, data, t);
 
                 return data;
@@ -143,6 +146,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             workKey : workKey
         };
 
+        console.log("NOTIFICATION")
         await SNSNotification(JSON.stringify(message));
         return;
 
