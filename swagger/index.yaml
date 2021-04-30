@@ -35,7 +35,7 @@ paths:
       AWS SNS에 아래와 같은 형태로 notification됩니다.\n
       ```typescript
       message : {
-        \tdata : Result
+        \tdata : Result[]
         \tworkKey : string
       }
       ```

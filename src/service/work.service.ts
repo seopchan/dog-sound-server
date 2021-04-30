@@ -4,14 +4,14 @@ import {Work} from "../models/table/work/work.model";
 import {WorkSchema} from "../models/schema/work/work.schema";
 import {Op, Transaction} from "sequelize";
 import {errorStore} from "../util/ErrorStore";
-import AWS, {S3} from "aws-sdk";
+import AWS, {S3, SQS} from "aws-sdk";
 import {JsonObject} from "swagger-ui-express";
 import Semaphore from "semaphore";
 import {workGroupService} from "./workGroup.service";
 import {transactionManager} from "../models/DB";
 import cloneDeep from "lodash.clonedeep";
 import {MetadataResult, Result, FileMetadata, workInnerService, WC, Metadata} from "./innerService/work.inner.service";
-import {LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
+import {EXTRACT_METADATA_SQS_URL, LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
 
 class WorkService {
     async getAllKeys(workGroupId: string, s3: AWS.S3, bucket: string, params?: any): Promise<string[]> {
@@ -54,91 +54,168 @@ class WorkService {
      * 6. metadata를 AWS SNS에 보낼 message의 data에 넣어줌
     */
     async executeQuestionMetadataExtract(workGroup: WorkGroup, works: Work[], allKeys: string[], outerTransaction?: Transaction): Promise<string[]> {
-        return new Promise(async (resolve, reject) => {
+        const sqs = new AWS.SQS({apiVersion: "2012-11-05"});
+        const messageIds: string[] = [];
+        const receiveData: any[] = [];
+
+        // new Promise(async (resolve, reject) => {
+        // return new Promise(async (resolve, reject) => {
             const layoutFileKey = LAYOUT_FILE;
             const totalWorkCount = await workService.countWork(workGroup);
-            let semaphore: Semaphore.Semaphore | null = Semaphore(10);
+            const semaphore: Semaphore.Semaphore | null = Semaphore(10);
             const responses: string[] = [];
 
-            for (const key of allKeys) {
-                const work = works[allKeys.indexOf(key)];
+            try {
+                // for (const key of allKeys) {
+                for (let i = 0; i<5; i++) {
+                    // const work = works[allKeys.indexOf(key)];
 
-                const set = {
-                    layout: layoutFileKey,
-                    source: {
-                        key: key,
-                        height: null
-                    }
-                };
-                const params = {
-                    FunctionName: `${QUESTION_EXTRACTOR_LAMBDA}`,
-                    InvocationType: "RequestResponse",
-                    Payload: JSON.stringify(set)
-                };
-
-                const lambda = new AWS.Lambda();
-                semaphore.take(function () {
-                    lambda.invoke(params, async function (err, responseData) {
-                        let otherError = undefined;
-                        if (typeof responseData.Payload == "string") {
-                            otherError = JSON.parse(responseData.Payload).errorMessage || null;
-                            if (err || otherError) {
-                                await transactionManager.runOnTransaction(null, async(t) => {
-                                    await workService.updateStatus(work, WorkStatus.FAIL, t);
-                                    const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
-                                    if (workGroupStatus == WorkStatus.WAIT) {
-                                        await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
-                                    }
-                                });
-
-                                if (semaphore != null) {
-                                    semaphore!.capacity = 0;
-                                    semaphore = null;
-                                }
-
-                                if (err) {
-                                    return reject(new Error(JSON.stringify(err)));
-                                } else if (otherError) {
-                                    return reject(new Error(responseData.Payload));
-                                }
-                            } else if (responseData && responseData.Payload) {
-                                responses.push(responseData.Payload);
-                                const updateWorkGroup = await transactionManager.runOnTransaction(null, async (t) => {
-                                    await workService.updateStatus(work, WorkStatus.SUCCESS, t);
-                                    const isSuccess = await workService.checkIsSuccess(workGroup, totalWorkCount, t);
-                                    if (isSuccess) {
-                                        const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS, t);
-                                        return updateWorkGroup;
-                                    }
-                                });
-                                if (updateWorkGroup && updateWorkGroup.status == WorkStatus.SUCCESS) {
-                                    semaphore!.capacity = 0;
-                                    semaphore = null;
-                                    return resolve(responses);
-                                }
-                            }
-                            if (semaphore) {
-                                semaphore.leave();
-                            }
-                            return;
-                        } else {
-                            await transactionManager.runOnTransaction(null, async (t) => {
-                                await workService.updateStatus(work, WorkStatus.FAIL, t);
-                                const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
-                                if (workGroupStatus == WorkStatus.WAIT) {
-                                    await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
-                                }
-                            });
-
-                            semaphore!.capacity = 0;
-                            semaphore = null;
-
-                            return reject(new Error("Wrong AWS Lambda Payload"));
+                    const set = {
+                        layout: layoutFileKey,
+                        source: {
+                            // key: key,
+                            key: "key",
+                            height: null
                         }
-                    });
-                });
+                    };
+                    const params = {
+                        FunctionName: QUESTION_EXTRACTOR_LAMBDA,
+                        InvocationType: "RequestResponse",
+                        Payload: JSON.stringify(set)
+                    };
+
+                    const lambda = new AWS.Lambda();
+                    // semaphore.take(function () {
+                    //     lambda.invoke(params, async function (err, responseData) {
+                    //         let otherError = undefined;
+                    //         if (typeof responseData.Payload == "string") {
+                    //             otherError = JSON.parse(responseData.Payload).errorMessage || null;
+                    //             if (err || otherError) {
+                    //                 await transactionManager.runOnTransaction(null, async(t) => {
+                    //                     await workService.updateStatus(work, WorkStatus.FAIL, t);
+                    //                     const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
+                    //                     if (workGroupStatus == WorkStatus.WAIT) {
+                    //                         await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
+                    //                     }
+                    //                 });
+                    //
+                    //                 if (semaphore != null) {
+                    //                     semaphore!.capacity = 0;
+                    //                     semaphore = null;
+                    //                 }
+                    //
+                    //                 if (err) {
+                    //                     return reject(new Error(JSON.stringify(err)));
+                    //                 } else if (otherError) {
+                    //                     return reject(new Error(responseData.Payload));
+                    //                 }
+                    //             } else if (responseData && responseData.Payload) {
+                    //                 responses.push(responseData.Payload);
+                    //                 const updateWorkGroup = await transactionManager.runOnTransaction(null, async (t) => {
+                    //                     await workService.updateStatus(work, WorkStatus.SUCCESS, t);
+                    //                     const isSuccess = await workService.checkIsSuccess(workGroup, totalWorkCount, t);
+                    //                     if (isSuccess) {
+                    //                         const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS, t);
+                    //                         return updateWorkGroup;
+                    //                     }
+                    //                 });
+                    //                 if (updateWorkGroup && updateWorkGroup.status == WorkStatus.SUCCESS) {
+                    //                     semaphore!.capacity = 0;
+                    //                     semaphore = null;
+                    //                     return resolve(responses);
+                    //                 }
+                    //             }
+                    //             if (semaphore) {
+                    //                 semaphore.leave();
+                    //             }
+                    //             return;
+                    //         } else {
+                    //             await transactionManager.runOnTransaction(null, async (t) => {
+                    //                 await workService.updateStatus(work, WorkStatus.FAIL, t);
+                    //                 const workGroupStatus = await workGroupService.checkStatus(workGroup, t);
+                    //                 if (workGroupStatus == WorkStatus.WAIT) {
+                    //                     await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL, t);
+                    //                 }
+                    //             });
+                    //
+                    //             semaphore!.capacity = 0;
+                    //             semaphore = null;
+                    //
+                    //             return reject(new Error("Wrong AWS Lambda Payload"));
+                    //         }
+                    //     });
+                    // });
+
+                    const sqsParams = {
+                        DelaySeconds: 10,
+                        MessageAttributes: {
+                            "FunctionName": {
+                                DataType: "String",
+                                StringValue: QUESTION_EXTRACTOR_LAMBDA,
+                            },
+                            "InvocationType": {
+                                DataType: "String",
+                                StringValue: "RequestResponse"
+                            },
+                            "Payload": {
+                                DataType: "String",
+                                StringValue: JSON.stringify(set)
+                            }
+                        },
+                        MessageBody: "Lambda(hwp-metadata-extractor) Invoke",
+                        QueueUrl: EXTRACT_METADATA_SQS_URL as string
+                    };
+                    console.log("SEND MESSAGE");
+                    const data = await sqs.sendMessage(sqsParams).promise();
+                    const messageId = data.MessageId as string;
+                    console.log("MESSAGE ID PUSH");
+                    messageIds.push(messageId);
+                }
+            } catch (e) {
+                throw new Error(e);
             }
-        });
+        // });
+
+        console.log("messageIds");
+        console.log(messageIds);
+
+        const receiveParams = {
+            AttributeNames: [
+                "setTimestamp"
+            ],
+            MaxNumberOfMessages: 10,
+            MessageAttributeNames: [
+                "All"
+            ],
+            QueueUrl: EXTRACT_METADATA_SQS_URL as string,
+            VisibilityTimeout: 20,
+            WaitTimeSeconds: 0
+        };
+
+        try {
+            console.log("receive");
+            const data = await sqs.receiveMessage(receiveParams).promise();
+
+            receiveData.push(data);
+            console.log("receiveData push");
+
+            if(data.Messages) {
+                for(const message of data.Messages) {
+
+                    const deleteParams = {
+                        QueueUrl: EXTRACT_METADATA_SQS_URL as string,
+                        ReceiptHandle: message.ReceiptHandle as string
+                    };
+                    const deleteData = await sqs.deleteMessage(deleteParams).promise();
+                }
+            }
+        } catch (e) {
+            throw new Error(e);
+        }
+
+        console.log("receiveData");
+        console.log(receiveData);
+        return [];
     }
 
     async executeQuestionSplit(workGroup: WorkGroup, work: Work, questionFileKey: string, answerFileKey: string) {
@@ -210,7 +287,6 @@ class WorkService {
                 await transactionManager.runOnTransaction(null, async (t) => {
                     await workService.updateStatus(work, WorkStatus.FAIL);
                     const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
-                    // await workGroupService.callbackToApiServer(updateWorkGroup);
                     //TODO AWS SNS PUB
                 });
                 throw new Error(otherError || err);
@@ -219,7 +295,6 @@ class WorkService {
                 await transactionManager.runOnTransaction(null, async (t) => {
                     await workService.updateStatus(work, WorkStatus.SUCCESS);
                     const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS);
-                    // await workGroupService.callbackToApiServer(updateWorkGroup, [response]);
                     //TODO AWS SNS PUB
                 });
             }

@@ -6,22 +6,27 @@ import {paramUtil} from "../util/param";
 import {JsonObject} from "swagger-ui-express";
 import {checkingUtil} from "../util/checking";
 import {transactionManager} from "../models/DB";
-import {MetadataResult, Result} from "../service/innerService/work.inner.service";
 import {WorkStatus} from "../models/schema/work/workgroup.schema";
 import {WorkGroup} from "../models/table/work/workgroup.model";
 import {errorStore} from "../util/ErrorStore";
-import {Work} from "../models/table/work/work.model";
-import {resultDataService} from "../service/resultdata.service";
 import {ResultData} from "../models/table/work/resultdata.model";
 import {PromiseResult} from "aws-sdk/lib/request";
 import {
     AWS_ACCESS_KEY,
     AWS_REGION,
     AWS_SECRET_ACCESS_KEY,
-    EXTRACT_METADATA_SNS,
-    GONGBACK_SNS,
+    EXTRACT_METADATA_SNS, EXTRACT_METADATA_SQS_URL,
+    GONGBACK_SNS, QUESTION_EXTRACTOR_LAMBDA,
     QUESTIONS_BUCKET
 } from "../util/secrets";
+import {Consumer, SQSMessage} from "sqs-consumer";
+import * as https from "https";
+
+AWS.config.update({
+   region: AWS_REGION,
+   accessKeyId: AWS_ACCESS_KEY,
+   secretAccessKey: AWS_SECRET_ACCESS_KEY
+});
 
 export const hwpMetadataExtract = async(req: Request, res: Response, next: NextFunction) => {
     const workGroupId = req.body.workGroupId as string;
@@ -31,13 +36,9 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         return res.sendBadRequestError();
     }
 
-    const s3 = new AWS.S3({
-        accessKeyId: AWS_ACCESS_KEY,
-        secretAccessKey: AWS_SECRET_ACCESS_KEY,
-        region: AWS_REGION
-    });
+    const s3 = new AWS.S3();
 
-    const bucket = QUESTIONS_BUCKET;
+    const bucket = QUESTIONS_BUCKET as string;
 
     const questionWorkGroupId = workGroupId+"/question";
     const answerWorkGroupId = workGroupId+"/answer";
@@ -78,7 +79,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             });
         } catch (e) {
             console.log(e);
-            await SNSNotification(String(e));
+            // await SNSNotification(String(e));
             return;
         }
 
@@ -90,65 +91,48 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             }
         });
 
-        let questionWorks: Work[];
-        let answerWorks: Work[];
-        try {
-            [questionWorks, answerWorks] = await transactionManager.runOnTransaction(null, async (t) => {
-                const questionWorks = await workService.createWorks(questionWorkGroup, questionKeys, t);
-                const answerWorks = await workService.createWorks(answerWorkGroup, answerKeys, t);
-
-                return [questionWorks, answerWorks];
-            });
-        } catch (e) {
-            console.log(e);
-            await SNSNotification(String(e));
-            return;
-        }
-
-        let metadataResponse: MetadataResult[];
-        let questionExtractResponse: string[];
-        let answerExtractResponse: string[];
-        try {
-            metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
-            questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
-            answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks, answerKeys);
-            console.log("EXECUTE END")
-        } catch (e) {
-            console.log(e);
-            await SNSNotification(String(e));
-            return;
-        }
-
-
-        /**
-         * 1. 일반문제 -> 문제+답+메타데이터
-         * 2. 공통문제 -> 문제+답+메타데이터+그룹ID+WC
-         * 3. 공통문제_WC -> pass
-         */
-        let data: Result[];
-        try {
-            data = await transactionManager.runOnTransaction(null, async (t) => {
-                console.log("Mapping")
-                const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
-                console.log("CREATE RESULT DATA")
-                await resultDataService.createResultData(workKey, data, t);
-
-                return data;
-            });
-        } catch (e) {
-            console.log(e);
-            await SNSNotification(String(e));
-            return;
-        }
-
-        const message = {
-            data : data,
-            workKey : workKey
+        // TODO 후처리를 queue로
+        const sqsParams = {
+            DelaySeconds: 10,
+            MessageAttributes: {
+                "questionWorkGroup": {
+                    DataType: "String",
+                    StringValue: JSON.stringify(questionWorkGroup)
+                },
+                "questionKeys": {
+                    DataType: "String",
+                    StringValue: questionKeys.toString()
+                },
+                "answerWorkGroup": {
+                    DataType: "String",
+                    StringValue: JSON.stringify(answerWorkGroup)
+                },
+                "answerKeys": {
+                    DataType: "String",
+                    StringValue: answerKeys.toString()
+                },
+                "metadataKeys": {
+                    DataType: "String",
+                    StringValue: metadataKeys.toString()
+                },
+                "bucket": {
+                    DataType: "String",
+                    StringValue: bucket
+                },
+                "workKey": {
+                    DataType: "String",
+                    StringValue: workKey
+                },
+            },
+            MessageBody: "Lambda(hwp-metadata-extractor) Invoke",
+            QueueUrl: EXTRACT_METADATA_SQS_URL as string
         };
+        const sqs = new AWS.SQS({apiVersion: "2012-11-05"});
+        const response = await sqs.sendMessage(sqsParams).promise();
 
-        console.log("NOTIFICATION")
-        await SNSNotification(JSON.stringify(message));
-        return;
+        console.log(response);
+
+        // await extractMetadata(questionWorkGroup, questionKeys, answerWorkGroup, answerKeys, metadataKeys, s3, bucket, workKey);
 
     } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
         res.sendRs({
@@ -164,11 +148,11 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         });
         if (!resultData) {
             console.log(Error(errorStore.NOT_FOUND));
-            await SNSNotification(String(Error(errorStore.NOT_FOUND)));
+            // await SNSNotification(String(Error(errorStore.NOT_FOUND)));
             return res.sendNotFoundError();
         }
 
-        await SNSNotification(JSON.stringify(resultData));
+        // await SNSNotification(JSON.stringify(resultData));
         return;
     } else {
         const workKey = questionWorkGroup.workKey;
@@ -186,6 +170,73 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
 
     return;
 };
+
+// export const extractMetadata = async (req: Request, res: Response, next: NextFunction ) => {
+//     const questionWorkGroup : WorkGroup;
+//     const questionKeys : string[];
+//     const answerWorkGroup : WorkGroup;
+//     const answerKeys : string[];
+//     const metadataKeys : string[];
+//     const s3 : S3;
+//     const bucket : string;
+//     const workKey : string;
+//
+//     let questionWorks: Work[];
+//     let answerWorks: Work[];
+//     try {
+//         [questionWorks, answerWorks] = await transactionManager.runOnTransaction(null, async (t) => {
+//             const questionWorks = await workService.createWorks(questionWorkGroup, questionKeys, t);
+//             const answerWorks = await workService.createWorks(answerWorkGroup, answerKeys, t);
+//
+//             return [questionWorks, answerWorks];
+//         });
+//     } catch (e) {
+//         console.log(e);
+//         // await SNSNotification(String(e));
+//         return;
+//     }
+//
+//     let metadataResponse: MetadataResult[];
+//     let questionExtractResponse: string[];
+//     let answerExtractResponse: string[];
+//     try {
+//         metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
+//         questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
+//         answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks, answerKeys);
+//     } catch (e) {
+//         console.log(e);
+//         // await SNSNotification(String(e));
+//         return;
+//     }
+//
+//
+//     /**
+//      * 1. 일반문제 -> 문제+답+메타데이터
+//      * 2. 공통문제 -> 문제+답+메타데이터+그룹ID+WC
+//      * 3. 공통문제_WC -> pass
+//      */
+//     let data: Result[];
+//     try {
+//         data = await transactionManager.runOnTransaction(null, async (t) => {
+//             const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
+//             await resultDataService.createResultData(workKey, data, t);
+//
+//             return data;
+//         });
+//     } catch (e) {
+//         console.log(e);
+//         // await SNSNotification(String(e));
+//         return;
+//     }
+//
+//     const message = {
+//         data: data,
+//         workKey: workKey
+//     };
+//
+//     // await SNSNotification(JSON.stringify(message));
+//     return;
+// }
 
 export const questionSplit = async(req: Request, res: Response, next: NextFunction) => {
     const questionFileKey = req.body.questionFileKey as string;

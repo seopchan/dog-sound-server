@@ -19,3 +19,5 @@ export const SPLIT_QUESTION_SNS = process.env["SPLIT_QUESTION_SNS"];
 export const EXTRACT_METADATA_SNS = process.env["EXTRACT_METADATA_SNS"];
 export const MERGE_SNS = process.env["MERGE_SNS"];
 export const GONGBACK_SNS = process.env["GONGBACK_SNS"];
+
+export const EXTRACT_METADATA_SQS_URL = process.env["EXTRACT_METADATA_SQS_URL"];

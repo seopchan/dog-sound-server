@@ -11,6 +11,9 @@ import "source-map-support/register";
 import passport from "passport";
 import AWS from "aws-sdk";
 import {db} from "./models/DB";
+import {Consumer, SQSMessage} from "sqs-consumer";
+import {EXTRACT_METADATA_SQS_URL} from "./util/secrets";
+import https from "https";
 
 if(!process.env["AWS_ACCESS_KEY"]) {
     throw new Error("MISSING AWS_ACCESS_KEY");
@@ -33,6 +36,34 @@ async function syncData() {
 
 }
 
+async function startSqsConsumer() {
+    const app = Consumer.create({
+        queueUrl: EXTRACT_METADATA_SQS_URL,
+        handleMessage: async (message: SQSMessage): Promise<void> => {
+            // const params = message.Attributes;
+            console.log("receive message" + message);
+            // await extractMetadata(message);
+        },
+        sqs: new AWS.SQS({
+            httpOptions: {
+                agent: new https.Agent({
+                    keepAlive: true
+                })
+            }
+        })
+    });
+
+    app.on("error", (err: Error) => {
+        console.error(err.message);
+    });
+
+    app.on("processing_error", (err: Error) => {
+        console.error(err.message);
+    });
+
+    app.start();
+}
+
 /**
  * Start Express server.
  */
@@ -44,10 +75,12 @@ async function syncData() {
         //스테이징 서버..
         console.log("ALTER SYNC");
         await db.sync({alter: true});
+        await startSqsConsumer();
     } else {
         //개발 로컬
         console.log("FORCE SYNC");
         await db.sync({force: true});
         await syncData();
+        await startSqsConsumer();
     }
 })();
