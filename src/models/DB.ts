@@ -12,12 +12,6 @@ logger.debug(`password ${PASSWORD}`);
 logger.debug(`database ${DATABASE}`);
 
 export const db =  new Sequelize({
-    pool: {
-        // max: 20,
-        // acquire: 10000
-        max: 5,
-
-    },
     host: DB_URL,
     database: DATABASE,
     dialect: "mysql",
