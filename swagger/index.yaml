@@ -41,7 +41,7 @@ paths:
       ```
       ```typescript
       Result : {
-        \tS3Bucket: string
+        \tbucket: string
         \tquestionKey : string
         \tanswerKey : string
         \tmetadata : Metadata
