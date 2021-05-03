@@ -124,7 +124,9 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             MessageBody: "Lambda(hwp-metadata-extractor) Invoke",
             QueueUrl: EXTRACT_METADATA_SQS_URL as string
         };
-        const sqs = new AWS.SQS({apiVersion: "2012-11-05"});
+        const sqs = new AWS.SQS({
+            apiVersion: "2012-11-05"
+        });
         await sqs.sendMessage(sqsParams).promise();
     } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
         res.sendRs({

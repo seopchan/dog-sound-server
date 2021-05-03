@@ -46,10 +46,12 @@ function processError(receiptHandle: string, err: Error, sqs: SQS) {
 
 async function startSqsConsumer() {
     let receiptHandle: string | undefined;
-    const sqs = new AWS.SQS();
+    const sqs = new AWS.SQS({
+        apiVersion: "2012-11-05",
+    });
 
     const app = Consumer.create({
-        queueUrl: EXTRACT_METADATA_SQS_URL,
+        queueUrl: EXTRACT_METADATA_SQS_URL as string,
         messageAttributeNames: ["All"],
         visibilityTimeout: 15*60,
         handleMessage: async (message: SQSMessage): Promise<void> => {
