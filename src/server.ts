@@ -14,6 +14,7 @@ import {db} from "./models/DB";
 import {Consumer, SQSMessage} from "sqs-consumer";
 import {EXTRACT_METADATA_SQS_URL} from "./util/secrets";
 import {workGroupService} from "./service/workGroup.service";
+import {awsService} from "./service/aws.service";
 
 if(!process.env["AWS_ACCESS_KEY"]) {
     throw new Error("MISSING AWS_ACCESS_KEY");
@@ -46,49 +47,56 @@ function processError(receiptHandle: string, err: Error, sqs: SQS) {
 
 async function startSqsConsumer() {
     let receiptHandle: string | undefined;
-    const sqs = new AWS.SQS({
-        apiVersion: "2012-11-05",
-    });
 
-    const app = Consumer.create({
-        queueUrl: EXTRACT_METADATA_SQS_URL as string,
-        messageAttributeNames: ["All"],
-        visibilityTimeout: 15*60,
-        handleMessage: async (message: SQSMessage): Promise<void> => {
-            receiptHandle = message.ReceiptHandle;
-            console.log("receive message" + JSON.stringify(message));
-            try {
-                await workGroupService.extractMetadata(message);
-            } catch (e) {
-                if (receiptHandle != null) {
-                    processError(receiptHandle, e, sqs);
-                } else {
-                    console.log("receiptHandle is undefined");
+    try {
+        const sqs = new AWS.SQS({
+            apiVersion: "2012-11-05",
+        });
+
+        const app = Consumer.create({
+            queueUrl: EXTRACT_METADATA_SQS_URL as string,
+            messageAttributeNames: ["All"],
+            visibilityTimeout: 15*60,
+            handleMessage: async (message: SQSMessage): Promise<void> => {
+                receiptHandle = message.ReceiptHandle;
+                console.log("receive message" + JSON.stringify(message));
+                try {
+                    await workGroupService.extractMetadata(message);
+                } catch (e) {
+                    if (receiptHandle != null) {
+                        processError(receiptHandle, e, sqs);
+                    } else {
+                        console.log("receiptHandle is undefined");
+                    }
                 }
+            },
+            sqs: sqs
+        });
+
+        app.on("error", (err: Error) => {
+            if (receiptHandle) {
+                processError(receiptHandle, err, sqs);
+            } else {
+                console.log("receiptHandle is undefined");
             }
-        },
-        sqs: sqs
-    });
+            receiptHandle = undefined;
+        });
 
-    app.on("error", (err: Error) => {
-        if (receiptHandle) {
-            processError(receiptHandle, err, sqs);
-        } else {
-            console.log("receiptHandle is undefined");
-        }
-        receiptHandle = undefined;
-    });
+        app.on("processing_error", (err: Error) => {
+            if (receiptHandle) {
+                processError(receiptHandle, err, sqs);
+            } else {
+                console.log("receiptHandle is undefined");
+            }
+            receiptHandle = undefined;
+        });
 
-    app.on("processing_error", (err: Error) => {
-        if (receiptHandle) {
-            processError(receiptHandle, err, sqs);
-        } else {
-            console.log("receiptHandle is undefined");
-        }
-        receiptHandle = undefined;
-    });
+        app.start();
+    } catch (e) {
+        console.log(e);
+        await awsService.SNSNotification(e);
+    }
 
-    app.start();
 }
 
 /**
