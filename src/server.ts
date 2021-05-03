@@ -9,11 +9,11 @@ if (fs.existsSync(".env")) {
 import main from "./main";
 import "source-map-support/register";
 import passport from "passport";
-import AWS from "aws-sdk";
+import AWS, {SQS} from "aws-sdk";
 import {db} from "./models/DB";
 import {Consumer, SQSMessage} from "sqs-consumer";
 import {EXTRACT_METADATA_SQS_URL} from "./util/secrets";
-import https from "https";
+import {workGroupService} from "./service/workGroup.service";
 
 if(!process.env["AWS_ACCESS_KEY"]) {
     throw new Error("MISSING AWS_ACCESS_KEY");
@@ -33,32 +33,57 @@ main.use(errorHandler());
 
 async function syncData() {
     console.log("syncData");
+}
 
+function processError(receiptHandle: string, err: Error, sqs: SQS) {
+    const deleteParams = {
+        QueueUrl: EXTRACT_METADATA_SQS_URL as string,
+        ReceiptHandle: receiptHandle as string
+    };
+    console.error(err.message);
+    sqs.deleteMessage(deleteParams);
 }
 
 async function startSqsConsumer() {
+    let receiptHandle: string | undefined;
+    const sqs = new AWS.SQS();
+
     const app = Consumer.create({
         queueUrl: EXTRACT_METADATA_SQS_URL,
+        messageAttributeNames: ["All"],
+        visibilityTimeout: 15*60,
         handleMessage: async (message: SQSMessage): Promise<void> => {
-            // const params = message.Attributes;
-            console.log("receive message" + message);
-            // await extractMetadata(message);
-        },
-        sqs: new AWS.SQS({
-            httpOptions: {
-                agent: new https.Agent({
-                    keepAlive: true
-                })
+            receiptHandle = message.ReceiptHandle;
+            console.log("receive message" + JSON.stringify(message));
+            try {
+                await workGroupService.extractMetadata(message);
+            } catch (e) {
+                if (receiptHandle != null) {
+                    processError(receiptHandle, e, sqs);
+                } else {
+                    console.log("receiptHandle is undefined");
+                }
             }
-        })
+        },
+        sqs: sqs
     });
 
     app.on("error", (err: Error) => {
-        console.error(err.message);
+        if (receiptHandle) {
+            processError(receiptHandle, err, sqs);
+        } else {
+            console.log("receiptHandle is undefined");
+        }
+        receiptHandle = undefined;
     });
 
     app.on("processing_error", (err: Error) => {
-        console.error(err.message);
+        if (receiptHandle) {
+            processError(receiptHandle, err, sqs);
+        } else {
+            console.log("receiptHandle is undefined");
+        }
+        receiptHandle = undefined;
     });
 
     app.start();
