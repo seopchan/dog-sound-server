@@ -115,8 +115,16 @@ class WorkGroupService {
             throw new Error(errorStore.INVALID_PARAM);
         }
 
-        const questionWorkGroup: WorkGroup = await this.getWorkGroup(questionWorkGroupId);
-        const answerWorkGroup: WorkGroup = await this.getWorkGroup(answerWorkGroupId);
+        let questionWorkGroup: WorkGroup;
+        let answerWorkGroup: WorkGroup;
+        try {
+            questionWorkGroup = await this.getWorkGroup(questionWorkGroupId);
+            answerWorkGroup = await this.getWorkGroup(answerWorkGroupId);
+        } catch (e) {
+            console.log(e);
+            await awsService.SNSNotification(String(e));
+            return;
+        }
 
         const s3 = new AWS.S3({apiVersion: "2006-03-01"});
 
@@ -138,6 +146,7 @@ class WorkGroupService {
         let metadataResponse: MetadataResult[];
         let questionExtractResponse: string[];
         let answerExtractResponse: string[];
+        console.log("execute extract");
         try {
             metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
             questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
@@ -155,6 +164,7 @@ class WorkGroupService {
          * 3. 공통문제_WC -> pass
          */
         let data: Result[];
+        console.log("mapping");
         try {
             data = await transactionManager.runOnTransaction(null, async (t) => {
                 const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
@@ -173,6 +183,7 @@ class WorkGroupService {
             workKey: workKey
         };
 
+        console.log("sns notification");
         await awsService.SNSNotification(JSON.stringify(snsMessage));
         return;
     }

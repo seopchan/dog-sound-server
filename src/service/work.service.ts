@@ -113,6 +113,7 @@ class WorkService {
                                 if (updateWorkGroup && updateWorkGroup.status == WorkStatus.SUCCESS) {
                                     semaphore!.capacity = 0;
                                     semaphore = null;
+                                    console.log("all success");
                                     return resolve(responses);
                                 }
                             }
