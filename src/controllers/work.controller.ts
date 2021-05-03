@@ -26,7 +26,6 @@ AWS.config.update({
 });
 
 export const hwpMetadataExtract = async(req: Request, res: Response, next: NextFunction) => {
-    console.log("extract");
     const workGroupId = req.body.workGroupId as string;
 
     if (!paramUtil.checkParam(workGroupId)) {
@@ -67,12 +66,13 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         let questionWorkGroup: WorkGroup;
         let answerWorkGroup: WorkGroup;
         let workKey: string;
-        console.log("create workGroup");
         try {
             [questionWorkGroup, answerWorkGroup, workKey] = await transactionManager.runOnTransaction(null, async (t) => {
                 const questionWorkGroup = await workGroupService.createWorkGroup(questionWorkGroupId, t);
                 const workKey = questionWorkGroup.workKey;
                 const answerWorkGroup = await workGroupService.createWorkGroup(answerWorkGroupId, t, workKey);
+                await workService.createWorks(questionWorkGroup, questionKeys, t);
+                await workService.createWorks(answerWorkGroup, answerKeys, t);
 
                 return [questionWorkGroup, answerWorkGroup, workKey];
             });
@@ -84,7 +84,6 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
 
 
         // 즉각 응답
-        console.log("WorkKey : " + workKey);
         res.sendRs({
             data: {
                 workKey: workKey
@@ -99,17 +98,9 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
                     DataType: "String",
                     StringValue: questionWorkGroup.workGroupId
                 },
-                "questionKeys": {
-                    DataType: "String",
-                    StringValue: questionKeys.toString()
-                },
                 "answerWorkGroupId": {
                     DataType: "String",
                     StringValue: answerWorkGroup.workGroupId
-                },
-                "answerKeys": {
-                    DataType: "String",
-                    StringValue: answerKeys.toString()
                 },
                 "metadataKeys": {
                     DataType: "String",
@@ -130,7 +121,6 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         const sqs = new AWS.SQS({
             apiVersion: "2012-11-05"
         });
-        console.log("sendMessage");
         await sqs.sendMessage(sqsParams).promise();
     } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
         res.sendRs({
@@ -150,8 +140,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             return res.sendNotFoundError();
         }
 
-        // await awsService.SNSNotification(JSON.stringify(resultData));
-        console.log("return");
+        await awsService.SNSNotification(JSON.stringify(resultData));
         return;
     } else {
         const workKey = questionWorkGroup.workKey;

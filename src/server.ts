@@ -59,7 +59,6 @@ async function startSqsConsumer() {
             visibilityTimeout: 15*60,
             handleMessage: async (message: SQSMessage): Promise<void> => {
                 receiptHandle = message.ReceiptHandle;
-                console.log("receive message" + JSON.stringify(message));
                 try {
                     await workGroupService.extractMetadata(message);
                 } catch (e) {

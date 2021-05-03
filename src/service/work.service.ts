@@ -53,19 +53,19 @@ class WorkService {
      *
      * 6. metadata를 AWS SNS에 보낼 message의 data에 넣어줌
     */
-    async executeQuestionMetadataExtract(workGroup: WorkGroup, works: Work[], allKeys: string[], outerTransaction?: Transaction): Promise<string[]> {
+    async executeQuestionMetadataExtract(workGroup: WorkGroup, works: Work[], outerTransaction?: Transaction): Promise<string[]> {
         return new Promise(async (resolve, reject) => {
             const layoutFileKey = LAYOUT_FILE;
             const totalWorkCount = await workService.countWork(workGroup);
             let semaphore: Semaphore.Semaphore | null = Semaphore(10);
             const responses: string[] = [];
 
-            for (const key of allKeys) {
-                const work = works[allKeys.indexOf(key)];
+            for (const work of works) {
+                // const work = works[allKeys.indexOf(key)];
                 const set = {
                     layout: layoutFileKey,
                     source: {
-                        key: key,
+                        key: work.workId,
                         height: null
                     }
                 };
@@ -113,7 +113,6 @@ class WorkService {
                                 if (updateWorkGroup && updateWorkGroup.status == WorkStatus.SUCCESS) {
                                     semaphore!.capacity = 0;
                                     semaphore = null;
-                                    console.log("all success");
                                     return resolve(responses);
                                 }
                             }

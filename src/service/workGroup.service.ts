@@ -102,14 +102,12 @@ class WorkGroupService {
         }
 
         const questionWorkGroupId = params.questionWorkGroupId.StringValue as string;
-        const questionKeys = params.questionKeys.StringValue?.split(",") as string[];
         const answerWorkGroupId = params.answerWorkGroupId.StringValue as string;
-        const answerKeys = params.answerKeys.StringValue?.split(",") as string[];
         const metadataKeys = params.metadataKeys.StringValue?.split(",") as string[];
         const bucket = params.bucket.StringValue as string;
         const workKey = params.workKey.StringValue as string;
 
-        const invalidParam = !paramUtil.checkParam(questionWorkGroupId, questionKeys, answerWorkGroupId, answerKeys, metadataKeys, bucket, workKey);
+        const invalidParam = !paramUtil.checkParam(questionWorkGroupId, answerWorkGroupId, metadataKeys, bucket, workKey);
 
         if (invalidParam) {
             throw new Error(errorStore.INVALID_PARAM);
@@ -132,8 +130,19 @@ class WorkGroupService {
         let answerWorks: Work[];
         try {
             [questionWorks, answerWorks] = await transactionManager.runOnTransaction(null, async (t) => {
-                const questionWorks = await workService.createWorks(questionWorkGroup, questionKeys, t);
-                const answerWorks = await workService.createWorks(answerWorkGroup, answerKeys, t);
+                const questionWorks = await Work.findAll({
+                    where: {
+                        workGroupId: questionWorkGroupId
+                    },
+                    transaction: t
+                });
+                const answerWorks = await Work.findAll({
+                    where: {
+                        workGroupId: answerWorkGroupId
+                    },
+                    transaction: t
+                });
+
 
                 return [questionWorks, answerWorks];
             });
@@ -146,11 +155,10 @@ class WorkGroupService {
         let metadataResponse: MetadataResult[];
         let questionExtractResponse: string[];
         let answerExtractResponse: string[];
-        console.log("execute extract");
         try {
             metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
-            questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks, questionKeys);
-            answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks, answerKeys);
+            questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks);
+            answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks);
         } catch (e) {
             console.log(e);
             await awsService.SNSNotification(String(e));
@@ -164,7 +172,6 @@ class WorkGroupService {
          * 3. 공통문제_WC -> pass
          */
         let data: Result[];
-        console.log("mapping");
         try {
             data = await transactionManager.runOnTransaction(null, async (t) => {
                 const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
@@ -183,7 +190,6 @@ class WorkGroupService {
             workKey: workKey
         };
 
-        console.log("sns notification");
         await awsService.SNSNotification(JSON.stringify(snsMessage));
         return;
     }
