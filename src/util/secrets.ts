@@ -8,6 +8,7 @@ export const AWS_SECRET_ACCESS_KEY = process.env["AWS_SECRET_ACCESS_KEY"];
 export const AWS_REGION = process.env["AWS_REGION"];
 
 export const QUESTIONS_BUCKET = process.env["QUESTIONS_BUCKET"] as string;
+export const HWP_METADATA_BUCKET = process.env["HWP_METADATA_BUCKET"] as string;
 
 export const LAYOUT_FILE = process.env["LAYOUT_FILE"];
 
