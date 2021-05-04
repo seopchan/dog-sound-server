@@ -41,7 +41,7 @@ function processError(receiptHandle: string, err: Error, sqs: SQS) {
         QueueUrl: EXTRACT_METADATA_SQS_URL as string,
         ReceiptHandle: receiptHandle as string
     };
-    console.error("Remove Message Because\n" + err.message);
+    console.error("Remove Message Because : " + err.message);
     sqs.deleteMessage(deleteParams);
 }
 
