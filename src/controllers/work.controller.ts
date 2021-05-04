@@ -39,7 +39,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
 
     const questionWorkGroupId = workGroupId+"/question";
     const answerWorkGroupId = workGroupId+"/answer";
-    const metadataWorkGroupId  = workGroupId+"/metadata";
+    const metadataWorkGroupId  = workGroupId+"/questionMetadata";
 
     // 이미 workGroup이 있는지 확인
     const questionWorkGroup: WorkGroup | null = await WorkGroup.findOne({
@@ -106,14 +106,14 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
                     DataType: "String",
                     StringValue: metadataKeys.toString()
                 },
-                "bucket": {
-                    DataType: "String",
-                    StringValue: bucket
-                },
                 "workKey": {
                     DataType: "String",
                     StringValue: workKey
                 },
+                "workGroupId": {
+                    DataType: "String",
+                    StringValue: workGroupId
+                }
             },
             MessageBody: "Lambda(hwp-metadata-extractor) Invoke",
             QueueUrl: EXTRACT_METADATA_SQS_URL as string
@@ -121,7 +121,8 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         const sqs = new AWS.SQS({
             apiVersion: "2012-11-05"
         });
-        await sqs.sendMessage(sqsParams).promise();
+        const response = await sqs.sendMessage(sqsParams).promise();
+        console.log(response);
     } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
         res.sendRs({
             data: {

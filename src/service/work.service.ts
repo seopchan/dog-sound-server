@@ -11,7 +11,7 @@ import {workGroupService} from "./workGroup.service";
 import {transactionManager} from "../models/DB";
 import cloneDeep from "lodash.clonedeep";
 import {MetadataResult, Result, FileMetadata, workInnerService, WC, Metadata} from "./innerService/work.inner.service";
-import {LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
+import {HWP_METADATA_BUCKET, LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
 
 class WorkService {
     async getAllKeys(workGroupId: string, s3: AWS.S3, bucket: string, params?: any): Promise<string[]> {
@@ -19,7 +19,7 @@ class WorkService {
         if(!params) {
             params = {
                 Bucket: bucket,
-                Prefix: workGroupId
+                Prefix: workGroupId+"/"
             };
         }
 
@@ -345,7 +345,7 @@ class WorkService {
         });
     }
 
-    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[], outerTransaction?: Transaction): Promise<Result[]> {
+    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[], workGroupId: string, outerTransaction?: Transaction): Promise<Result[]> {
         const data: Result[] = [];
 
         try {
@@ -363,7 +363,8 @@ class WorkService {
                         imageHeight: qEDObject.height as number,
                         thumbnailKey: qEDObject.thumbnailKey as string,
                         extractedImageKey: qEDObject.extractedImageKey as string,
-                        text: qEDObject.text as string
+                        text: qEDObject.text as string,
+                        bucket: HWP_METADATA_BUCKET
                     };
 
                     try {
@@ -378,7 +379,7 @@ class WorkService {
                         }
 
                         const metadata: Metadata = await workInnerService.getMetadata(questionMetadata, questionFileMetadata, answerFileMetadata, );
-                        const result: Result = await workInnerService.getResult(questionGroupKey, wc, questionKey, answerKey, metadata);
+                        const result: Result = await workInnerService.getResult(questionGroupKey, wc, questionKey, answerKey, metadata, workGroupId);
 
                         data.push(result);
                     } catch (e) {

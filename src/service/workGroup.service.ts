@@ -12,7 +12,7 @@ import {resultDataService} from "./resultdata.service";
 import {MessageBodyAttributeMap} from "aws-sdk/clients/sqs";
 import {awsService} from "./aws.service";
 import AWS from "aws-sdk";
-import {AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_ACCESS_KEY} from "../util/secrets";
+import {AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_ACCESS_KEY, QUESTIONS_BUCKET} from "../util/secrets";
 
 AWS.config.update({
     region: AWS_REGION,
@@ -101,13 +101,13 @@ class WorkGroupService {
             throw new Error(errorStore.INVALID_PARAM);
         }
 
+        const workGroupId = params.workGroupId.StringValue as string;
         const questionWorkGroupId = params.questionWorkGroupId.StringValue as string;
         const answerWorkGroupId = params.answerWorkGroupId.StringValue as string;
         const metadataKeys = params.metadataKeys.StringValue?.split(",") as string[];
-        const bucket = params.bucket.StringValue as string;
         const workKey = params.workKey.StringValue as string;
 
-        const invalidParam = !paramUtil.checkParam(questionWorkGroupId, answerWorkGroupId, metadataKeys, bucket, workKey);
+        const invalidParam = !paramUtil.checkParam(questionWorkGroupId, answerWorkGroupId, metadataKeys, workKey);
 
         if (invalidParam) {
             throw new Error(errorStore.INVALID_PARAM);
@@ -156,7 +156,7 @@ class WorkGroupService {
         let questionExtractResponse: string[];
         let answerExtractResponse: string[];
         try {
-            metadataResponse = await workService.getMetadataList(metadataKeys, s3, bucket);
+            metadataResponse = await workService.getMetadataList(metadataKeys, s3, QUESTIONS_BUCKET);
             questionExtractResponse = await workService.executeQuestionMetadataExtract(questionWorkGroup, questionWorks);
             answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks);
         } catch (e) {
@@ -174,7 +174,7 @@ class WorkGroupService {
         let data: Result[];
         try {
             data = await transactionManager.runOnTransaction(null, async (t) => {
-                const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, t);
+                const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, workGroupId, t);
                 await resultDataService.createResultData(workKey, data, t);
 
                 return data;

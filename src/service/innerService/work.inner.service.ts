@@ -1,6 +1,6 @@
 import cloneDeep from "lodash.clonedeep";
 import {Transaction} from "sequelize";
-import {QUESTIONS_BUCKET} from "../../util/secrets";
+import {HWP_METADATA_BUCKET} from "../../util/secrets";
 
 export interface MetadataResult {
     metadata: string;
@@ -13,6 +13,7 @@ export interface Result {
     questionKey: string;
     answerKey: string;
     metadata: Metadata;
+    workGroupId: string;
 
     questionGroupKey?: string;
     wc?: WC;
@@ -23,6 +24,7 @@ export interface FileMetadata {
     thumbnailKey: string;
     extractedImageKey: string;
     text: string;
+    bucket: string;
 }
 
 export interface WC {
@@ -36,6 +38,8 @@ export interface Metadata {
     tag: string | null;
     category: string | null;
     type: string | null;
+    apply: string | null;
+
     questionFileMetadata: FileMetadata;
     answerFileMetadata: FileMetadata;
 }
@@ -46,6 +50,7 @@ interface QuestionMetadata {
     tag: string | null;
     category: string | null;
     type: string | null;
+    apply: string | null;
 }
 
 export default class WorkInnerService {
@@ -53,7 +58,7 @@ export default class WorkInnerService {
         const response = metadataResponse.find((response) => {
             const metadataKey = cloneDeep(response.key);
 
-            return questionKey == metadataKey.replace("json", "hwp").replace("metadata", "question");
+            return questionKey == metadataKey.replace("json", "hwp").replace("questionMetadata", "question");
         });
 
         if (response == undefined) {
@@ -67,7 +72,8 @@ export default class WorkInnerService {
             publisher: metadataObject.publisher,
             tag: metadataObject.tag,
             category: metadataObject.category,
-            type: metadataObject.type
+            type: metadataObject.type,
+            apply: metadataObject.apply
         };
 
         return questionMetadata as QuestionMetadata;
@@ -93,7 +99,8 @@ export default class WorkInnerService {
             imageHeight: aEDObject.height as number,
             thumbnailKey: aEDObject.thumbnailKey as string,
             extractedImageKey: aEDObject.extractedImageKey as string,
-            text: aEDObject.text as string
+            text: aEDObject.text as string,
+            bucket: HWP_METADATA_BUCKET
         };
 
         return [key, metadata] as [string, FileMetadata];
@@ -117,7 +124,8 @@ export default class WorkInnerService {
             imageHeight: qEDObject.height as number,
             thumbnailKey: qEDObject.thumbnailKey as string,
             extractedImageKey: qEDObject.extractedImageKey as string,
-            text: qEDObject.text as string
+            text: qEDObject.text as string,
+            bucket: HWP_METADATA_BUCKET
         };
 
         const wc: WC = {
@@ -135,15 +143,16 @@ export default class WorkInnerService {
             publisher: questionMetadata.publisher,
             tag: questionMetadata.tag,
             type: questionMetadata.type,
+            apply: questionMetadata.apply,
 
             questionFileMetadata: questionFileMetadata,
             answerFileMetadata: answerFileMetadata
         };
     }
 
-    async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata): Promise<Result> {
+    async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata, workGroupId: string): Promise<Result> {
         return {
-            bucket: QUESTIONS_BUCKET,
+            bucket: HWP_METADATA_BUCKET,
 
             questionGroupKey: questionGroupKey,
             wc: wc,
@@ -151,6 +160,7 @@ export default class WorkInnerService {
             questionKey: questionKey,
             answerKey: answerKey,
             metadata: metadata,
+            workGroupId: workGroupId
         };
     }
 }
