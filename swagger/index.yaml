@@ -46,17 +46,19 @@ paths:
         \tanswerKey : string
         \tmetadata : Metadata
 
-        \tquestionGroupKey? : string
-        \twc? : WC
+        \tquestionGroupKey? : string // 연속 문제 그룹의 key
+        \twc? : WC // 공통지문을 제외한 문제 부분 (Without Common)
       }
       ```
       ```typescript
       Metadata : {
-        \tlevel: string | null
-        \tpublisher: string | null
-        \ttag: string | null
-        \tcategory: string | null
-        \ttype: string | null
+        \tpublisher: string | null (출제처, 출처)
+        \ttag: string | null (태그)
+        \tlevel: string | null (난이도)
+        \tcategory: string | null (유형)
+        \ttype: string | null (분류)
+        \tapply: string | null (용도)
+
         \tquestionFileMetadata: FileMetadata
         \tanswerFileMetadata: FileMetadata
       }
@@ -69,10 +71,11 @@ paths:
       ```
       ```typescript
       FileMetadata : {
-        imageHeight: number
-        thumbnailKey: string
-        extractedImageKey: string
-        text: string
+        \timageHeight: number
+        \tthumbnailKey: string
+        \textractedImageKey: string
+        \ttext: string
+        \tbucket: string
       }
       ```
       "
