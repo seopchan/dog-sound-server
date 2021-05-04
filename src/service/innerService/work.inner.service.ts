@@ -100,7 +100,7 @@ export default class WorkInnerService {
             thumbnailKey: aEDObject.thumbnailKey as string,
             extractedImageKey: aEDObject.extractedImageKey as string,
             text: aEDObject.text as string,
-            bucket: HWP_METADATA_BUCKET
+            bucket: HWP_METADATA_BUCKET as string
         };
 
         return [key, metadata] as [string, FileMetadata];
@@ -125,7 +125,7 @@ export default class WorkInnerService {
             thumbnailKey: qEDObject.thumbnailKey as string,
             extractedImageKey: qEDObject.extractedImageKey as string,
             text: qEDObject.text as string,
-            bucket: HWP_METADATA_BUCKET
+            bucket: HWP_METADATA_BUCKET as string
         };
 
         const wc: WC = {
@@ -152,7 +152,7 @@ export default class WorkInnerService {
 
     async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata, workGroupId: string): Promise<Result> {
         return {
-            bucket: HWP_METADATA_BUCKET,
+            bucket: HWP_METADATA_BUCKET as string,
 
             questionGroupKey: questionGroupKey,
             wc: wc,

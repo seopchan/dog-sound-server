@@ -364,7 +364,7 @@ class WorkService {
                         thumbnailKey: qEDObject.thumbnailKey as string,
                         extractedImageKey: qEDObject.extractedImageKey as string,
                         text: qEDObject.text as string,
-                        bucket: HWP_METADATA_BUCKET
+                        bucket: HWP_METADATA_BUCKET as string
                     };
 
                     try {
