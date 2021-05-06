@@ -121,8 +121,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         const sqs = new AWS.SQS({
             apiVersion: "2012-11-05"
         });
-        const response = await sqs.sendMessage(sqsParams).promise();
-        console.log(response);
+        await sqs.sendMessage(sqsParams).promise();
     } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
         res.sendRs({
             data: {

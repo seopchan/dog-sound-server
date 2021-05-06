@@ -58,6 +58,7 @@ paths:
         \tcategory: string | null (유형)
         \ttype: string | null (분류)
         \tapply: string | null (용도)
+        \ttarget: string | null (과목)
 
         \tquestionFileMetadata: FileMetadata
         \tanswerFileMetadata: FileMetadata

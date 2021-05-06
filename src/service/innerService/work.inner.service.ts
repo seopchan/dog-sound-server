@@ -39,6 +39,7 @@ export interface Metadata {
     category: string | null;
     type: string | null;
     apply: string | null;
+    target: string | null;
 
     questionFileMetadata: FileMetadata;
     answerFileMetadata: FileMetadata;
@@ -51,6 +52,7 @@ interface QuestionMetadata {
     category: string | null;
     type: string | null;
     apply: string | null;
+    target: string | null;
 }
 
 export default class WorkInnerService {
@@ -73,7 +75,8 @@ export default class WorkInnerService {
             tag: metadataObject.tag,
             category: metadataObject.category,
             type: metadataObject.type,
-            apply: metadataObject.apply
+            apply: metadataObject.apply,
+            target: metadataObject.target
         };
 
         return questionMetadata as QuestionMetadata;
@@ -144,6 +147,7 @@ export default class WorkInnerService {
             tag: questionMetadata.tag,
             type: questionMetadata.type,
             apply: questionMetadata.apply,
+            target: questionMetadata.target,
 
             questionFileMetadata: questionFileMetadata,
             answerFileMetadata: answerFileMetadata
