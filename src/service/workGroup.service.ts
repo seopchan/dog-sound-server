@@ -197,18 +197,15 @@ class WorkGroupService {
     }
 
     async splitQuestion(message: SQSMessage): Promise<any> {
-        console.log("split question");
         const params = message.MessageAttributes as MessageBodyAttributeMap;
         if (!params) {
             throw new Error(errorStore.INVALID_PARAM);
         }
-        console.log("1");
 
         const questionWorkGroupId = params.questionWorkGroupId.StringValue as string;
         const questionWorkId = params.questionWorkId.StringValue as string;
         const questionFileKey = params.questionFileKey.StringValue as string;
         const answerFileKey = params.answerFileKey.StringValue as string;
-        console.log("2");
 
         try {
             const questionWorkGroup = await workGroupService.getWorkGroup(questionWorkGroupId);

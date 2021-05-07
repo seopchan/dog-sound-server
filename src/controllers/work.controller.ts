@@ -210,7 +210,6 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
         apiVersion: "2012-11-05"
     });
     await sqs.sendMessage(sqsParams).promise();
-    console.log("send message");
 };
 
 export const makePaper = async(req: Request, res: Response, next: NextFunction) => {
