@@ -12,7 +12,13 @@ import {resultDataService} from "./resultdata.service";
 import {MessageBodyAttributeMap} from "aws-sdk/clients/sqs";
 import {awsService} from "./aws.service";
 import AWS from "aws-sdk";
-import {AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_ACCESS_KEY, QUESTIONS_BUCKET} from "../util/secrets";
+import {
+    AWS_ACCESS_KEY,
+    AWS_REGION,
+    AWS_SECRET_ACCESS_KEY,
+    EXTRACT_METADATA_SNS,
+    QUESTIONS_BUCKET, SPLIT_QUESTION_SNS
+} from "../util/secrets";
 
 AWS.config.update({
     region: AWS_REGION,
@@ -95,7 +101,7 @@ class WorkGroupService {
         return null;
     }
 
-    async extractMetadata(message: SQSMessage): Promise<any> {
+    async extractMetadata(message: SQSMessage): Promise<void> {
         const params = message.MessageAttributes as MessageBodyAttributeMap;
         if (!params) {
             throw new Error(errorStore.INVALID_PARAM);
@@ -120,8 +126,7 @@ class WorkGroupService {
             answerWorkGroup = await this.getWorkGroup(answerWorkGroupId);
         } catch (e) {
             console.log(e);
-            await awsService.SNSNotification(String(e));
-            return;
+            throw new Error(e);
         }
 
         const s3 = new AWS.S3({apiVersion: "2006-03-01"});
@@ -148,8 +153,7 @@ class WorkGroupService {
             });
         } catch (e) {
             console.log(e);
-            await awsService.SNSNotification(String(e));
-            return;
+            throw new Error(e);
         }
 
         let metadataResponse: MetadataResult[];
@@ -161,8 +165,7 @@ class WorkGroupService {
             answerExtractResponse = await workService.executeQuestionMetadataExtract(answerWorkGroup, answerWorks);
         } catch (e) {
             console.log(e);
-            await awsService.SNSNotification(String(e));
-            return;
+            throw new Error(e);
         }
 
 
@@ -175,14 +178,13 @@ class WorkGroupService {
         try {
             data = await transactionManager.runOnTransaction(null, async (t) => {
                 const data: Result[] = await workService.mappingData(questionExtractResponse, answerExtractResponse, metadataResponse, workGroupId, t);
-                await resultDataService.createResultData(workKey, data, t);
+                await resultDataService.createResultData(workKey, JSON.stringify(data), t);
 
                 return data;
             });
         } catch (e) {
             console.log(e);
-            await awsService.SNSNotification(String(e));
-            return;
+            throw new Error(e);
         }
 
         const snsMessage = {
@@ -190,7 +192,35 @@ class WorkGroupService {
             workKey: workKey
         };
 
-        await awsService.SNSNotification(JSON.stringify(snsMessage));
+        await awsService.SNSNotification(JSON.stringify(snsMessage), EXTRACT_METADATA_SNS);
+        return;
+    }
+
+    async splitQuestion(message: SQSMessage): Promise<any> {
+        console.log("split question");
+        const params = message.MessageAttributes as MessageBodyAttributeMap;
+        if (!params) {
+            throw new Error(errorStore.INVALID_PARAM);
+        }
+        console.log("1");
+
+        const questionWorkGroupId = params.questionWorkGroupId.StringValue as string;
+        const questionWorkId = params.questionWorkId.StringValue as string;
+        const questionFileKey = params.questionFileKey.StringValue as string;
+        const answerFileKey = params.answerFileKey.StringValue as string;
+        console.log("2");
+
+        try {
+            const questionWorkGroup = await workGroupService.getWorkGroup(questionWorkGroupId);
+            const questionWork = await workService.getWork(questionWorkId);
+
+            const splitResponse = await workService.executeQuestionSplit(questionWorkGroup, questionWork, questionFileKey, answerFileKey);
+
+            await awsService.SNSNotification(JSON.stringify(splitResponse), SPLIT_QUESTION_SNS);
+        } catch (e) {
+            await awsService.SNSNotification(e, SPLIT_QUESTION_SNS);
+        }
+
         return;
     }
 }

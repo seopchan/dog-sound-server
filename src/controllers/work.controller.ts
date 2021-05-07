@@ -13,9 +13,9 @@ import {ResultData} from "../models/table/work/resultdata.model";
 import {
     AWS_ACCESS_KEY,
     AWS_REGION,
-    AWS_SECRET_ACCESS_KEY,
+    AWS_SECRET_ACCESS_KEY, EXTRACT_METADATA_SNS,
     EXTRACT_METADATA_SQS_URL,
-    QUESTIONS_BUCKET
+    QUESTIONS_BUCKET, SPLIT_QUESTION_SQS_URL
 } from "../util/secrets";
 import {awsService} from "../service/aws.service";
 
@@ -78,7 +78,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             });
         } catch (e) {
             console.log(e);
-            await awsService.SNSNotification(String(e));
+            await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
             return;
         }
 
@@ -90,7 +90,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             }
         });
 
-        // TODO 후처리를 queue로
+        // 후처리를 queue로 동작
         const sqsParams = {
             DelaySeconds: 10,
             MessageAttributes: {
@@ -136,11 +136,11 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         });
         if (!resultData) {
             console.log(Error(errorStore.NOT_FOUND));
-            await awsService.SNSNotification(String(Error(errorStore.NOT_FOUND)));
+            await awsService.SNSNotification(String(Error(errorStore.NOT_FOUND)), EXTRACT_METADATA_SNS);
             return res.sendNotFoundError();
         }
 
-        await awsService.SNSNotification(JSON.stringify(resultData));
+        await awsService.SNSNotification(JSON.stringify(resultData), EXTRACT_METADATA_SNS);
         return;
     } else {
         const workKey = questionWorkGroup.workKey;
@@ -160,11 +160,11 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
 };
 
 export const questionSplit = async(req: Request, res: Response, next: NextFunction) => {
+    // S3에 저장된 문제와 답 파일의 key
     const questionFileKey = req.body.questionFileKey as string;
     const answerFileKey = req.body.answerFileKey as string;
-    const callbackUrl = req.body.callbackUrl as string;
 
-    if (!paramUtil.checkParam(questionFileKey, answerFileKey, callbackUrl)) {
+    if (!paramUtil.checkParam(questionFileKey, answerFileKey)) {
         return res.sendBadRequestError();
     }
 
@@ -173,19 +173,44 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
     const questionWorkGroup = await workGroupService.createWorkGroup(workGroupId);
     const workKey = questionWorkGroup.workKey;
 
+    const questionWork = await workService.createWork(questionWorkGroup, questionFileKey);
+
     res.sendRs({
         data: {
             workKey: workKey
         }
     });
 
-    const questionWork = await workService.createWork(questionWorkGroup, questionFileKey);
+    // TODO 후처리 SQS 통해서 동작
+    const sqsParams = {
+        DelaySeconds: 10,
+        MessageAttributes: {
+            "questionWorkGroupId": {
+                DataType: "String",
+                StringValue: questionWorkGroup.workGroupId
+            },
+            "questionWorkId": {
+                DataType: "String",
+                StringValue: questionWork.workId
+            },
+            "questionFileKey": {
+                DataType: "String",
+                StringValue: questionFileKey
+            },
+            "answerFileKey": {
+                DataType: "String",
+                StringValue: answerFileKey
+            }
+        },
+        MessageBody: "Lambda(question-split) Invoke",
+        QueueUrl: SPLIT_QUESTION_SQS_URL as string
+    };
 
-    try {
-        await workService.executeQuestionSplit(questionWorkGroup, questionWork, questionFileKey, answerFileKey);
-    } catch (e) {
-        return res.sendBadRequestError(e);
-    }
+    const sqs = new AWS.SQS({
+        apiVersion: "2012-11-05"
+    });
+    await sqs.sendMessage(sqsParams).promise();
+    console.log("send message");
 };
 
 export const makePaper = async(req: Request, res: Response, next: NextFunction) => {

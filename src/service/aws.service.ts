@@ -10,13 +10,13 @@ AWS.config.update({
 });
 
 class AwsService {
-    async SNSNotification(message: string): Promise<boolean> {
-        const extractMetadata = EXTRACT_METADATA_SNS as string;
-        const gongback = GONGBACK_SNS as string;
+    async SNSNotification(message: string, moduleSns: string): Promise<boolean> {
+        // const extractMetadata =  as string;
+        const gongbackSns = GONGBACK_SNS as string;
 
         try {
-            await this._SNSNotification(message, extractMetadata);
-            await this._SNSNotification(message, gongback);
+            await this._SNSNotification(message, moduleSns);
+            await this._SNSNotification(message, gongbackSns);
         } catch (e) {
             console.log(e);
             return false;

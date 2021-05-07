@@ -12,6 +12,7 @@ import {transactionManager} from "../models/DB";
 import cloneDeep from "lodash.clonedeep";
 import {MetadataResult, Result, FileMetadata, workInnerService, WC, Metadata} from "./innerService/work.inner.service";
 import {HWP_METADATA_BUCKET, LAYOUT_FILE, QUESTION_EXTRACTOR_LAMBDA, QUESTION_SPLIT_LAMBDA} from "../util/secrets";
+import {resultDataService} from "./resultdata.service";
 
 class WorkService {
     async getAllKeys(workGroupId: string, s3: AWS.S3, bucket: string, params?: any): Promise<string[]> {
@@ -140,44 +141,61 @@ class WorkService {
         });
     }
 
-    async executeQuestionSplit(workGroup: WorkGroup, work: Work, questionFileKey: string, answerFileKey: string) {
-        const layoutFileKey = LAYOUT_FILE;
-        const responses: JSON[] = [];
+    async executeQuestionSplit(workGroup: WorkGroup, work: Work, questionFileKey: string, answerFileKey: string): Promise<object> {
+        return new Promise(async (resolve, reject) => {
+            const layoutFileKey = LAYOUT_FILE;
+            const responses: JSON[] = [];
 
-        const set = {
-            layoutFileKey: layoutFileKey,
-            questionFileKey: questionFileKey,
-            answerFileKey: answerFileKey
-        };
-        const params = {
-            FunctionName: QUESTION_SPLIT_LAMBDA as string,
-            InvocationType: "RequestResponse",
-            Payload: JSON.stringify(set)
-        };
+            const set = {
+                layoutFileKey: layoutFileKey,
+                questionFileKey: questionFileKey,
+                answerFileKey: answerFileKey
+            };
+            const params = {
+                FunctionName: QUESTION_SPLIT_LAMBDA as string,
+                InvocationType: "RequestResponse",
+                Payload: JSON.stringify(set)
+            };
 
-        const lambda = new AWS.Lambda();
-        lambda.invoke(params, async function (err, data) {
-            let otherError = undefined;
-            if (typeof data.Payload == "string") {
-                otherError = JSON.parse(data.Payload).errorMessage;
-            }
+            const lambda = new AWS.Lambda();
+            lambda.invoke(params, async function (err, data) {
+                let otherError = undefined;
+                if (typeof data.Payload == "string") {
+                    otherError = JSON.parse(data.Payload).errorMessage;
+                }
 
-            if (err || otherError) {
-                await transactionManager.runOnTransaction(null, async (t) => {
-                    await workService.updateStatus(work, WorkStatus.FAIL, t);
-                    const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
-                    //TODO AWS SNS PUB
-                });
-                throw new Error(otherError || err);
-            } else if (data && data.Payload) {
-                responses.push(JSON.parse(data.Payload.toString()));
-                await transactionManager.runOnTransaction(null, async (t) => {
-                    await workService.updateStatus(work, WorkStatus.SUCCESS, t);
-                    const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS, t);
-                    // await workGroupService.callbackToApiServer(updateWorkGroup, responses);
-                    //TODO AWS SNS PUB
-                });
-            }
+                if (err || otherError) {
+                    await transactionManager.runOnTransaction(null, async (t) => {
+                        await workService.updateStatus(work, WorkStatus.FAIL, t);
+                        await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.FAIL);
+                    });
+                    return reject(otherError || err);
+                } else if (data && data.Payload) {
+                    responses.push(JSON.parse(data.Payload.toString()));
+                    const updateWorkGroup = await transactionManager.runOnTransaction(null, async (t) => {
+                        await workService.updateStatus(work, WorkStatus.SUCCESS, t);
+                        const updateWorkGroup = await workGroupService.updateWorkGroupStatus(workGroup, WorkStatus.SUCCESS, t);
+                        return updateWorkGroup;
+                    });
+
+                    let fileKeys;
+                    if (typeof data.Payload === "string") {
+                        fileKeys = JSON.parse(data.Payload);
+                    } else {
+                        reject("SplitResponse Payload Is Not String");
+                    }
+
+
+                    const splitResponse = {
+                        workKey: updateWorkGroup.workKey,
+                        fileKeys: JSON.parse(fileKeys)
+                    };
+
+                    await resultDataService.createResultData(updateWorkGroup.workKey, JSON.stringify(fileKeys));
+
+                    return resolve(splitResponse);
+                }
+            });
         });
     }
 
@@ -392,6 +410,16 @@ class WorkService {
         }
 
         return data as Result[];
+    }
+
+    async getWork(workId: string, outerTransaction?: Transaction): Promise<Work> {
+        const work = await Work.findByPk(workId, {transaction: outerTransaction});
+
+        if (!work) {
+            throw new Error(errorStore.NOT_FOUND);
+        }
+
+        return work;
     }
 }
 

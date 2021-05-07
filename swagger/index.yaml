@@ -48,6 +48,8 @@ paths:
 
         \tquestionGroupKey? : string // 연속 문제 그룹의 key
         \twc? : WC // 공통지문을 제외한 문제 부분 (Without Common)
+
+        \tworkGroupId: string // S3에 업로드된 모든 파일들의 Key의 공통 Prefix
       }
       ```
       ```typescript
@@ -109,7 +111,22 @@ paths:
   /question/questionSplit:
     post:
       summary: "hwp 파일의 문제들을 split합니다."
-      description: "questionFileKey: 나눌 문제 파일의 Key입니다.\nanswerFileKey: 나눌 정답 파일의 Key입니다.\n"
+      description: "questionFileKey: 문제 파일의 Key입니다.\nanswerFileKey: 정답 파일의 Key입니다.\n
+      AWS SNS에 아래와 같은 형태로 notification됩니다.\n
+      ```typescript
+      message: {
+        \tworkKey : string
+        \tfileKeys : {
+          \t\tquesitonKey: string, // s3경로 키 (파일이름포함)
+          \t\tanswerKey: string, // s3경로 키 (파일이름포함)
+          \t\tmetadataKey: string, // s3경로 키 (파일이름포함)
+          \t\tquesitonWCKey: string // s3경로 키 (파일이름포함)
+          \t\tbucket: string
+          \t\tworkGroupId: string,
+        \t}
+      }
+      ```
+      "
       tags:
         - work
       parameters:

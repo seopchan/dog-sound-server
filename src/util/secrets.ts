@@ -16,9 +16,10 @@ export const QUESTION_EXTRACTOR_LAMBDA = process.env["QUESTION_EXTRACTOR_LAMBDA"
 export const QUESTION_SPLIT_LAMBDA = process.env["QUESTION_SPLIT_LAMBDA"];
 export const MAKE_PAPER_LAMBDA = process.env["MAKE_PAPER_LAMBDA"];
 
-export const SPLIT_QUESTION_SNS = process.env["SPLIT_QUESTION_SNS"];
-export const EXTRACT_METADATA_SNS = process.env["EXTRACT_METADATA_SNS"];
-export const MERGE_SNS = process.env["MERGE_SNS"];
+export const SPLIT_QUESTION_SNS = process.env["SPLIT_QUESTION_SNS"] as string;
+export const EXTRACT_METADATA_SNS = process.env["EXTRACT_METADATA_SNS"] as string;
+export const MERGE_SNS = process.env["MERGE_SNS"] as string;
 export const GONGBACK_SNS = process.env["GONGBACK_SNS"];
 
 export const EXTRACT_METADATA_SQS_URL = process.env["EXTRACT_METADATA_SQS_URL"];
+export const SPLIT_QUESTION_SQS_URL = process.env["SPLIT_QUESTION_SQS_URL"];

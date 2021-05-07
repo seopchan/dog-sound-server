@@ -8,6 +8,7 @@ declare global {
         interface Response {
             sendRs(rs: Rs): Response;
             sendBadRequestError(message?: string): Response;
+            sendInvalidParamError(message?: string): Response;
             sendForbiddenError(message?: string): Response;
             sendUnauthorizedError(message?: string): Response;
             sendNotFoundError(message?: string): Response;
