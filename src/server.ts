@@ -51,7 +51,7 @@ async function processError(receiptHandle: string, err: Error, sqs: SQS) {
 
     sqs.deleteMessage(deleteParams);
 
-    // await awsService.SNSNotification(String(err), EXTRACT_METADATA_SNS);
+    await awsService.SNSNotification(String(err), EXTRACT_METADATA_SNS);
 }
 
 async function startMetadataExtractSqsConsumer() {

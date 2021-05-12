@@ -2,7 +2,7 @@ import {Op, Transaction} from "sequelize";
 import {Task} from "../models/table/work/task.model";
 import {TaskSchema, TaskStatus} from "../models/schema/work/task.schema";
 import {TaskGroup} from "../models/table/work/taskgroup.model";
-import {TaskGroupStatus, TaskType} from "../models/schema/work/taskgroup.schema";
+import {TaskType} from "../models/schema/work/taskgroup.schema";
 import {errorStore} from "../util/ErrorStore";
 
 class TaskService {

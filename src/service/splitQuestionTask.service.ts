@@ -4,7 +4,7 @@ import {errorStore} from "../util/ErrorStore";
 import {awsService} from "./aws.service";
 import {LAYOUT_FILE, QUESTION_SPLIT_LAMBDA, SPLIT_QUESTION_SNS} from "../util/secrets";
 import {Task} from "../models/table/work/task.model";
-import {Op, Transaction} from "sequelize";
+import {Transaction} from "sequelize";
 import AWS from "aws-sdk";
 import {transactionManager} from "../models/DB";
 import {taskGroupService} from "./taskGroup.service";

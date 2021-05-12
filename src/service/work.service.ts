@@ -4,7 +4,6 @@ import {Work} from "../models/table/work/work.model";
 import {WorkSchema} from "../models/schema/work/work.schema";
 import {Op, Transaction} from "sequelize";
 import {errorStore} from "../util/ErrorStore";
-import {error} from "shelljs";
 import {paramUtil} from "../util/param";
 
 AWS.config.update({

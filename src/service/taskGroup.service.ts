@@ -1,17 +1,11 @@
 import AWS from "aws-sdk";
-import {
-    AWS_ACCESS_KEY,
-    AWS_REGION,
-    AWS_SECRET_ACCESS_KEY,
-} from "../util/secrets";
-import {Op, Transaction} from "sequelize";
-import {transactionManager} from "../models/DB";
+import {AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_ACCESS_KEY,} from "../util/secrets";
+import {Transaction} from "sequelize";
 import {TaskGroup} from "../models/table/work/taskgroup.model";
 import {TaskGroupSchema, TaskGroupStatus} from "../models/schema/work/taskgroup.schema";
 import {paramUtil} from "../util/param";
 import {errorStore} from "../util/ErrorStore";
 import {Task} from "../models/table/work/task.model";
-import {awsService} from "./aws.service";
 import {ExtractMetadataTask} from "../models/table/work/extractmetadatatask.model";
 
 AWS.config.update({
