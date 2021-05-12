@@ -5,6 +5,8 @@ import {WorkSchema} from "../models/schema/work/work.schema";
 import {Op, Transaction} from "sequelize";
 import {errorStore} from "../util/ErrorStore";
 import {paramUtil} from "../util/param";
+import {TaskGroup} from "../models/table/work/taskgroup.model";
+import {error} from "shelljs";
 
 AWS.config.update({
     region: AWS_REGION,
@@ -40,14 +42,13 @@ class WorkService {
         return work;
     }
 
-    async getWorkByTaskGroup(taskGroupId: string, outerTransaction?: Transaction): Promise<Work> {
+    async getWorkByTaskGroup(taskGroup: TaskGroup, outerTransaction?: Transaction): Promise<Work> {
+        const taskGroupId = taskGroup.taskGroupId as string;
+
         const work = await Work.findOne({
-            where: {
-                [Op.like] : {
-                    taskGroupId: taskGroupId
-                }
-            },
-            transaction: outerTransaction
+           where: {
+               taskGroupId: taskGroupId
+           }
         });
 
         if (!work) {

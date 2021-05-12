@@ -14,6 +14,7 @@ import {SplitQuestionTask} from "../models/table/work/splitquestiontask.model";
 import {taskService} from "./task.service";
 import {TaskStatus} from "../models/schema/work/task.schema";
 import {TaskGroupStatus} from "../models/schema/work/taskgroup.schema";
+import {workService} from "./work.service";
 
 class SplitQuestionTaskService {
     async createTask(task: Task, questionFileKey: string, answerFileKey: string, outerTransaction?: Transaction): Promise<SplitQuestionTask> {
@@ -60,9 +61,15 @@ class SplitQuestionTaskService {
                 throw new Error(errorStore.NOT_FOUND);
             }
 
-            const splitResponse = await this.executeQuestionSplit(taskGroup, task, questionFileKey, answerFileKey);
+            const updatedTaskGroup = await this.executeQuestionSplit(taskGroup, task, questionFileKey, answerFileKey);
+            const updatedWork = await workService.getWorkByTaskGroup(updatedTaskGroup);
 
-            await awsService.SNSNotification(JSON.stringify(splitResponse), SPLIT_QUESTION_SNS);
+            const snsMessage = {
+                workKey: updatedWork.workKey,
+                fileKeys: JSON.parse(updatedTaskGroup.result)
+            };
+
+            await awsService.SNSNotification(JSON.stringify(snsMessage), SPLIT_QUESTION_SNS);
         } catch (e) {
             await awsService.SNSNotification(String(e), SPLIT_QUESTION_SNS);
         }

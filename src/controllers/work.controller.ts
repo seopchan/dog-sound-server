@@ -112,7 +112,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         await sqs.sendMessage(sqsParams).promise();
     } else if (taskGroup.status == TaskGroupStatus.SUCCESS){
         try {
-            const work = await workService.getWorkByTaskGroup(taskGroup.taskGroupId);
+            const work = await workService.getWorkByTaskGroup(taskGroup);
 
             res.sendRs({
                 data: {
@@ -134,7 +134,7 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
         }
     } else {
-        const work = await workService.getWorkByTaskGroup(taskGroup.taskGroupId);
+        const work = await workService.getWorkByTaskGroup(taskGroup);
 
         return res.sendRs({
             data: {

@@ -100,7 +100,7 @@ class ExtractMetadataTaskService {
         }
 
         const snsMessage = {
-            data: JSON.stringify(data),
+            data: data,
             workKey: workKey
         };
 
