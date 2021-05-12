@@ -1,15 +1,9 @@
 import {NextFunction, Request, Response} from "express";
 import AWS from "aws-sdk";
-import {workGroupService} from "../service/workGroup.service";
-import {workService} from "../service/work.service";
 import {paramUtil} from "../util/param";
-import {JsonObject} from "swagger-ui-express";
 import {checkingUtil} from "../util/checking";
 import {transactionManager} from "../models/DB";
-import {WorkStatus} from "../models/schema/work/workgroup.schema";
-import {WorkGroup} from "../models/table/work/workgroup.model";
 import {errorStore} from "../util/ErrorStore";
-import {ResultData} from "../models/table/work/resultdata.model";
 import {
     AWS_ACCESS_KEY,
     AWS_REGION,
@@ -18,6 +12,17 @@ import {
     QUESTIONS_BUCKET, SPLIT_QUESTION_SQS_URL
 } from "../util/secrets";
 import {awsService} from "../service/aws.service";
+import {TaskGroup} from "../models/table/work/taskgroup.model";
+import {taskGroupService} from "../service/taskGroup.service";
+import {Work} from "../models/table/work/work.model";
+import {workService} from "../service/work.service";
+import {TaskGroupStatus} from "../models/schema/work/taskgroup.schema";
+import {taskService} from "../service/task.service";
+import {extractMetadataTaskService} from "../service/extractMetadataTask.service";
+import {Task} from "../models/table/work/task.model";
+import {splitQuestionTaskService} from "../service/splitQuestionTask.service";
+import {SplitQuestionTask} from "../models/table/work/splitquestiontask.model";
+import {JsonObject} from "swagger-ui-express";
 
 AWS.config.update({
    region: AWS_REGION,
@@ -26,9 +31,9 @@ AWS.config.update({
 });
 
 export const hwpMetadataExtract = async(req: Request, res: Response, next: NextFunction) => {
-    const workGroupId = req.body.workGroupId as string;
+    const taskGroupId = req.body.taskGroupId as string;
 
-    if (!paramUtil.checkParam(workGroupId)) {
+    if (!paramUtil.checkParam(taskGroupId)) {
         console.log(Error(errorStore.BAD_REQUEST));
         return res.sendBadRequestError();
     }
@@ -37,56 +42,47 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
 
     const bucket = QUESTIONS_BUCKET as string;
 
-    const questionWorkGroupId = workGroupId+"/question";
-    const answerWorkGroupId = workGroupId+"/answer";
-    const metadataWorkGroupId  = workGroupId+"/questionMetadata";
+    const questionKeyPrefix = taskGroupId + "/question";
+    const answerKeyPrefix = taskGroupId + "/answer";
+    const metadataKeyPrefix  = taskGroupId + "/questionMetadata";
 
-    // 이미 workGroup이 있는지 확인
-    const questionWorkGroup: WorkGroup | null = await WorkGroup.findOne({
-        where: {
-            workGroupId: questionWorkGroupId,
-        }
-    });
-    const answerWorkGroup: WorkGroup | null = await WorkGroup.findOne({
-        where: {
-            workGroupId: answerWorkGroupId,
-        }
-    });
+    // 이미 taskGroup이 있는지 확인
+    const taskGroup: TaskGroup | null = await taskGroupService.getTaskGroup(taskGroupId);
 
-    if (questionWorkGroup == null || answerWorkGroupId == null) {
-        const questionKeys = await workService.getAllKeys(questionWorkGroupId, s3, bucket);
-        const answerKeys = await workService.getAllKeys(answerWorkGroupId, s3, bucket);
-        const metadataKeys = await workService.getAllKeys(metadataWorkGroupId, s3, bucket);
+    if (taskGroup == null) {
+        const questionKeys = await taskGroupService.getAllKeys(questionKeyPrefix, s3, bucket);
+        const answerKeys = await taskGroupService.getAllKeys(answerKeyPrefix, s3, bucket);
+        const metadataKeys = await taskGroupService.getAllKeys(metadataKeyPrefix, s3, bucket);
 
         if (checkingUtil.checkIsNull(questionKeys, answerKeys, metadataKeys)) {
             console.log(Error(errorStore.NOT_FOUND));
             return res.sendNotFoundError();
         }
 
-        let questionWorkGroup: WorkGroup;
-        let answerWorkGroup: WorkGroup;
-        let workKey: string;
-        try {
-            [questionWorkGroup, answerWorkGroup, workKey] = await transactionManager.runOnTransaction(null, async (t) => {
-                const questionWorkGroup = await workGroupService.createWorkGroup(questionWorkGroupId, t);
-                const workKey = questionWorkGroup.workKey;
-                const answerWorkGroup = await workGroupService.createWorkGroup(answerWorkGroupId, t, workKey);
-                await workService.createWorks(questionWorkGroup, questionKeys, t);
-                await workService.createWorks(answerWorkGroup, answerKeys, t);
+        const keys: string[] = questionKeys.concat(answerKeys);
 
-                return [questionWorkGroup, answerWorkGroup, workKey];
+        let taskGroup: TaskGroup;
+        let work: Work;
+        try {
+            [taskGroup, work] = await transactionManager.runOnTransaction(null, async (t) => {
+                const taskGroup = await taskGroupService.createTaskGroup(taskGroupId, t);
+                const work = await workService.createWork(taskGroup.taskGroupId, t);
+                const tasks: Task[] = await taskService.createTasks(taskGroup, keys, t);
+                await extractMetadataTaskService.createTasks(tasks, questionKeys, answerKeys, t);
+
+                return [taskGroup, work];
             });
         } catch (e) {
             console.log(e);
             await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
-            return;
+            return res.sendRs(e);
         }
 
 
         // 즉각 응답
         res.sendRs({
             data: {
-                workKey: workKey
+                workKey: work.workKey
             }
         });
 
@@ -94,25 +90,17 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
         const sqsParams = {
             DelaySeconds: 10,
             MessageAttributes: {
-                "questionWorkGroupId": {
-                    DataType: "String",
-                    StringValue: questionWorkGroup.workGroupId
-                },
-                "answerWorkGroupId": {
-                    DataType: "String",
-                    StringValue: answerWorkGroup.workGroupId
-                },
                 "metadataKeys": {
                     DataType: "String",
                     StringValue: metadataKeys.toString()
                 },
                 "workKey": {
                     DataType: "String",
-                    StringValue: workKey
+                    StringValue: work.workKey
                 },
-                "workGroupId": {
+                "taskGroupId": {
                     DataType: "String",
-                    StringValue: workGroupId
+                    StringValue: taskGroup.taskGroupId
                 }
             },
             MessageBody: "Lambda(hwp-metadata-extractor) Invoke",
@@ -122,36 +110,35 @@ export const hwpMetadataExtract = async(req: Request, res: Response, next: NextF
             apiVersion: "2012-11-05"
         });
         await sqs.sendMessage(sqsParams).promise();
-    } else if (questionWorkGroup.status == WorkStatus.SUCCESS && answerWorkGroup?.status == WorkStatus.SUCCESS){
-        res.sendRs({
-            data: {
-                workKey: questionWorkGroup.workKey
-            }
-        });
+    } else if (taskGroup.status == TaskGroupStatus.SUCCESS){
+        try {
+            const work = await workService.getWorkByTaskGroup(taskGroup.taskGroupId);
 
-        const resultData: ResultData | null = await ResultData.findOne({
-            where: {
-                workKey: questionWorkGroup.workKey
+            res.sendRs({
+                data: {
+                    workKey: work.workKey
+                }
+            });
+
+            const resultData = JSON.parse(taskGroup.result);
+
+            if (!resultData) {
+                console.log(Error(errorStore.NOT_FOUND));
+                await awsService.SNSNotification(String(Error(errorStore.NOT_FOUND)), EXTRACT_METADATA_SNS);
             }
-        });
-        if (!resultData) {
-            console.log(Error(errorStore.NOT_FOUND));
-            await awsService.SNSNotification(String(Error(errorStore.NOT_FOUND)), EXTRACT_METADATA_SNS);
-            return res.sendNotFoundError();
+
+            await awsService.SNSNotification(JSON.stringify(resultData), EXTRACT_METADATA_SNS);
+            return;
+
+        } catch (e) {
+            await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
         }
-
-        await awsService.SNSNotification(JSON.stringify(resultData), EXTRACT_METADATA_SNS);
-        return;
     } else {
-        const workKey = questionWorkGroup.workKey;
-        if (!workKey) {
-            console.log(Error(errorStore.NOT_FOUND));
-            return res.sendNotFoundError();
-        }
+        const work = await workService.getWorkByTaskGroup(taskGroup.taskGroupId);
 
         return res.sendRs({
             data: {
-                workKey: workKey
+                workKey: work.workKey
             }
         });
     }
@@ -168,12 +155,28 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
         return res.sendBadRequestError();
     }
 
-    const workGroupId = await getWorkGroupId();
+    const taskGroupId: string = await getTaskGroupId();
 
-    const questionWorkGroup = await workGroupService.createWorkGroup(workGroupId);
-    const workKey = questionWorkGroup.workKey;
+    let taskGroup: TaskGroup;
+    let work: Work;
+    let task: Task;
+    let splitQuestionTask: SplitQuestionTask;
+    try {
+        [taskGroup, work, task, splitQuestionTask] = await transactionManager.runOnTransaction(null, async (t) => {
+            const taskGroup = await taskGroupService.createTaskGroup(taskGroupId, t);
+            const work = await workService.createWork(taskGroup.taskGroupId, t);
+            const task = await taskService.createTask(taskGroup, t);
+            const splitQuestionTask = await splitQuestionTaskService.createTask(task, questionFileKey, answerFileKey, t);
 
-    const questionWork = await workService.createWork(questionWorkGroup, questionFileKey);
+            return [taskGroup, work, task, splitQuestionTask];
+        });
+    } catch(e) {
+        console.log(e);
+        await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
+        return res.sendRs(e);
+    }
+
+    const workKey = work.workKey;
 
     res.sendRs({
         data: {
@@ -185,21 +188,17 @@ export const questionSplit = async(req: Request, res: Response, next: NextFuncti
     const sqsParams = {
         DelaySeconds: 10,
         MessageAttributes: {
-            "questionWorkGroupId": {
+            "taskGroupId": {
                 DataType: "String",
-                StringValue: questionWorkGroup.workGroupId
+                StringValue: taskGroup.taskGroupId
             },
-            "questionWorkId": {
+            "taskId": {
                 DataType: "String",
-                StringValue: questionWork.workId
+                StringValue: task.taskId
             },
-            "questionFileKey": {
+            "splitQuestionTaskId": {
                 DataType: "String",
-                StringValue: questionFileKey
-            },
-            "answerFileKey": {
-                DataType: "String",
-                StringValue: answerFileKey
+                StringValue: splitQuestionTask.taskId
             }
         },
         MessageBody: "Lambda(question-split) Invoke",
@@ -220,28 +219,32 @@ export const makePaper = async(req: Request, res: Response, next: NextFunction) 
         return res.sendBadRequestError();
     }
 
-    const workGroupId = await getWorkGroupId();
+    const taskGroupId = await getTaskGroupId();
 
-    const questionWorkGroup = await workGroupService.createWorkGroup(workGroupId);
-    const workKey = questionWorkGroup.workKey;
+    let taskGroup: TaskGroup;
+    let work: Work;
+    [taskGroup, work] = await transactionManager.runOnTransaction(null, async (t) => {
+        const taskGroup = await taskGroupService.createTaskGroup(taskGroupId);
+        const work = await workService.createWork(taskGroup.taskGroupId);
+
+        return [taskGroup, work];
+    });
 
     res.sendRs({
         data: {
-            workKey: workKey
+            workKey: work.workKey
         }
     });
 
-    const questionWork = await workService.createWork(questionWorkGroup, questionFileKeys[0]);
-
     try {
-        await workService.executeMakePaper(questionWorkGroup, questionWork, questionFileKeys, dynamicContents);
+        // TODO SQS
+        // await workService.executeMakePaper(questionWorkGroup, questionWork, questionFileKeys, dynamicContents);
     } catch (e) {
         return res.sendBadRequestError(e);
     }
-    
 };
 
-async function getWorkGroupId(): Promise<string> {
+async function getTaskGroupId(): Promise<string> {
     const date = new Date();
     const year = date.getFullYear();
     const month = ("0" + (1 + date.getMonth())).slice(-2);

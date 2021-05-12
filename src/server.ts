@@ -18,8 +18,9 @@ import {
     SPLIT_QUESTION_SNS,
     SPLIT_QUESTION_SQS_URL
 } from "./util/secrets";
-import {workGroupService} from "./service/workGroup.service";
 import {awsService} from "./service/aws.service";
+import {extractMetadataTaskService} from "./service/extractMetadataTask.service";
+import {splitQuestionTaskService} from "./service/splitQuestionTask.service";
 
 if(!process.env["AWS_ACCESS_KEY"]) {
     throw new Error("MISSING AWS_ACCESS_KEY");
@@ -50,7 +51,7 @@ async function processError(receiptHandle: string, err: Error, sqs: SQS) {
 
     sqs.deleteMessage(deleteParams);
 
-    await awsService.SNSNotification(String(err), EXTRACT_METADATA_SNS);
+    // await awsService.SNSNotification(String(err), EXTRACT_METADATA_SNS);
 }
 
 async function startMetadataExtractSqsConsumer() {
@@ -68,7 +69,7 @@ async function startMetadataExtractSqsConsumer() {
             handleMessage: async (message: SQSMessage): Promise<void> => {
                 receiptHandle = message.ReceiptHandle;
                 try {
-                    await workGroupService.extractMetadata(message);
+                    await extractMetadataTaskService.extractMetadata(message);
                 } catch (e) {
                     if (receiptHandle != null) {
                         await processError(receiptHandle, e, sqs);
@@ -103,7 +104,7 @@ async function startMetadataExtractSqsConsumer() {
         app.start();
     } catch (e) {
         console.log(e);
-        await awsService.SNSNotification(e, EXTRACT_METADATA_SNS);
+        await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
     }
 }
 
@@ -123,7 +124,7 @@ async function startQuestionSplitterSqsConsumer() {
                 console.log("message receipt");
                 receiptHandle = message.ReceiptHandle;
                 try {
-                    await workGroupService.splitQuestion(message);
+                    await splitQuestionTaskService.splitQuestion(message);
                 } catch (e) {
                     if (receiptHandle != null) {
                         await processError(receiptHandle, e, sqs);
@@ -158,7 +159,7 @@ async function startQuestionSplitterSqsConsumer() {
         app.start();
     } catch (e) {
         console.log(e);
-        await awsService.SNSNotification(e, SPLIT_QUESTION_SNS);
+        await awsService.SNSNotification(String(e), SPLIT_QUESTION_SNS);
     }
 }
 

@@ -1,10 +1,13 @@
 import {Sequelize} from "sequelize-typescript";
 import logger from "../util/logger";
 import {Transaction} from "sequelize";
-import {Work} from "./table/work/work.model";
-import {WorkGroup} from "./table/work/workgroup.model";
 import {DATABASE, DB_URL, PASSWORD, USERNAME} from "../util/secrets";
-import {ResultData} from "./table/work/resultdata.model";
+import {TaskGroup} from "./table/work/taskgroup.model";
+import {Task} from "./table/work/task.model";
+import {ExtractMetadataTask} from "./table/work/extractmetadatatask.model";
+import {SplitQuestionTask} from "./table/work/splitquestiontask.model";
+import {MakePaperTask} from "./table/work/makepapertask.model";
+import {Work} from "./table/work/work.model";
 
 logger.debug(`connect with ${DB_URL}`);
 logger.debug(`username ${USERNAME}`);
@@ -18,9 +21,12 @@ export const db =  new Sequelize({
     username: USERNAME,
     password: PASSWORD,
     models: [
-        Work,
-        WorkGroup,
-        ResultData
+        TaskGroup,
+        Task,
+        ExtractMetadataTask,
+        SplitQuestionTask,
+        MakePaperTask,
+        Work
     ]
 });
 

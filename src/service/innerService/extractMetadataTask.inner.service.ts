@@ -1,5 +1,4 @@
 import cloneDeep from "lodash.clonedeep";
-import {Transaction} from "sequelize";
 import {HWP_METADATA_BUCKET} from "../../util/secrets";
 
 export interface MetadataResult {
@@ -55,7 +54,7 @@ interface QuestionMetadata {
     target: string | null;
 }
 
-export default class WorkInnerService {
+export default class ExtractMetadataTaskInnerService {
     async mappingMetadata(metadataResponse: MetadataResult[], questionKey: string): Promise<QuestionMetadata> {
         const response = metadataResponse.find((response) => {
             const metadataKey = cloneDeep(response.key);
@@ -82,7 +81,7 @@ export default class WorkInnerService {
         return questionMetadata as QuestionMetadata;
     }
 
-    async mappingAnswerMetadata(answerExtractResponse: string[], questionFileName: string, outerTransaction?: Transaction): Promise<[string, FileMetadata]> {
+    async mappingAnswerMetadata(answerExtractResponse: string[], questionFileName: string): Promise<[string, FileMetadata]> {
         const answerExtractedData: string | undefined = answerExtractResponse.find((answerExtractedData) => {
             const aEDObject = JSON.parse(answerExtractedData);
             const answerFileName = aEDObject.key.split("/").pop();
@@ -169,4 +168,4 @@ export default class WorkInnerService {
     }
 }
 
-export const workInnerService = new WorkInnerService();
+export const extractMetadataTaskInnerService = new ExtractMetadataTaskInnerService();
