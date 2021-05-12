@@ -12,7 +12,7 @@ export interface Result {
     questionKey: string;
     answerKey: string;
     metadata: Metadata;
-    workGroupId: string;
+    taskGroupId: string;
 
     questionGroupKey?: string;
     wc?: WC;
@@ -153,7 +153,7 @@ export default class ExtractMetadataTaskInnerService {
         };
     }
 
-    async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata, workGroupId: string): Promise<Result> {
+    async getResult(questionGroupKey: string | undefined, wc: WC | undefined, questionKey: string, answerKey: string, metadata: Metadata, taskGroupId: string): Promise<Result> {
         return {
             bucket: HWP_METADATA_BUCKET as string,
 
@@ -163,7 +163,7 @@ export default class ExtractMetadataTaskInnerService {
             questionKey: questionKey,
             answerKey: answerKey,
             metadata: metadata,
-            workGroupId: workGroupId
+            taskGroupId: taskGroupId
         };
     }
 }

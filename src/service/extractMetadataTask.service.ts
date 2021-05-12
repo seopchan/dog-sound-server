@@ -291,7 +291,7 @@ class ExtractMetadataTaskService {
         });
     }
 
-    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[], workGroupId: string): Promise<Result[]> {
+    async mappingData(questionExtractResponse: string[], answerExtractResponse: string[], metadataResponse: MetadataResult[], taskGroupId: string): Promise<Result[]> {
         const data: Result[] = [];
 
         try {
@@ -324,8 +324,8 @@ class ExtractMetadataTaskService {
                             wc = await extractMetadataTaskInnerService.mappingWC(questionExtractResponse, questionFileName, questionKey);
                         }
 
-                        const metadata: Metadata = await extractMetadataTaskInnerService.getMetadata(questionMetadata, questionFileMetadata, answerFileMetadata, );
-                        const result: Result = await extractMetadataTaskInnerService.getResult(questionGroupKey, wc, questionKey, answerKey, metadata, workGroupId);
+                        const metadata: Metadata = await extractMetadataTaskInnerService.getMetadata(questionMetadata, questionFileMetadata, answerFileMetadata);
+                        const result: Result = await extractMetadataTaskInnerService.getResult(questionGroupKey, wc, questionKey, answerKey, metadata, taskGroupId);
 
                         data.push(result);
                     } catch (e) {

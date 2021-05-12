@@ -223,12 +223,19 @@ export const makePaper = async(req: Request, res: Response, next: NextFunction) 
 
     let taskGroup: TaskGroup;
     let work: Work;
-    [taskGroup, work] = await transactionManager.runOnTransaction(null, async (t) => {
-        const taskGroup = await taskGroupService.createTaskGroup(taskGroupId);
-        const work = await workService.createWork(taskGroup.taskGroupId);
+    try {
+        [taskGroup, work] = await transactionManager.runOnTransaction(null, async (t) => {
+            const taskGroup = await taskGroupService.createTaskGroup(taskGroupId, t);
+            const work = await workService.createWork(taskGroup.taskGroupId, t);
 
-        return [taskGroup, work];
-    });
+            return [taskGroup, work];
+        });
+    } catch (e) {
+        console.log(e);
+        await awsService.SNSNotification(String(e), EXTRACT_METADATA_SNS);
+        return res.sendRs(e);
+    }
+
 
     res.sendRs({
         data: {
