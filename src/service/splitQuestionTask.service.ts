@@ -64,9 +64,10 @@ class SplitQuestionTaskService {
             const updatedTaskGroup = await this.executeQuestionSplit(taskGroup, task, questionFileKey, answerFileKey);
             const updatedWork = await workService.getWorkByTaskGroup(updatedTaskGroup);
 
+            const fileKeys = JSON.parse(JSON.parse(updatedTaskGroup.result));
             const snsMessage = {
                 workKey: updatedWork.workKey,
-                fileKeys: JSON.parse(updatedTaskGroup.result)
+                fileKeys: fileKeys
             };
 
             await awsService.SNSNotification(JSON.stringify(snsMessage), SPLIT_QUESTION_SNS);
