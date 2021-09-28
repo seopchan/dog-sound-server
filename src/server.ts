@@ -19,8 +19,6 @@ import {
     SPLIT_QUESTION_SQS_URL
 } from "./util/secrets";
 import {awsService} from "./service/aws.service";
-import {extractMetadataTaskService} from "./service/extractMetadataTask.service";
-import {splitQuestionTaskService} from "./service/splitQuestionTask.service";
 
 if(!process.env["AWS_ACCESS_KEY"]) {
     throw new Error("MISSING AWS_ACCESS_KEY");
@@ -69,7 +67,7 @@ async function startMetadataExtractSqsConsumer() {
             handleMessage: async (message: SQSMessage): Promise<void> => {
                 receiptHandle = message.ReceiptHandle;
                 try {
-                    await extractMetadataTaskService.extractMetadata(message);
+                    // await extractMetadataTaskService.extractMetadata(message);
                 } catch (e) {
                     if (receiptHandle != null) {
                         await processError(receiptHandle, e, sqs);
@@ -124,7 +122,7 @@ async function startQuestionSplitterSqsConsumer() {
                 console.log("message receipt");
                 receiptHandle = message.ReceiptHandle;
                 try {
-                    await splitQuestionTaskService.splitQuestion(message);
+                    // await splitQuestionTaskService.splitQuestion(message);
                 } catch (e) {
                     if (receiptHandle != null) {
                         await processError(receiptHandle, e, sqs);
@@ -169,7 +167,7 @@ async function startQuestionSplitterSqsConsumer() {
 (async () => {
     await main.listen(main.get("port"));
 
-    const force = process.env.ALTER_SYNC == "true";
+    const force = process.env.ALTER_SYNC == "false";
     if (force) {
         //스테이징 서버..
         console.log("ALTER SYNC");

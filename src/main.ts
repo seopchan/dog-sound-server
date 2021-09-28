@@ -6,14 +6,14 @@ import path from "path";
 import YAML from "yamljs";
 
 // Controllers (route handlers)
-import * as questionController from "./controllers/work.controller";
+import * as dogController from "./controllers/dog.controller";
 
 import errorMiddleware from "./middleware/error.middleware";
 import {NextFunction} from "express";
 import {Request, Response} from "express";
 import {responseMiddleware, requestMiddleware} from "./middleware/RqrsMiddleware";
 import swaggerUi from "swagger-ui-express";
-
+import {getAllDogSound, setDogSoundType} from "./controllers/dog.controller";
 
 // Create Express server
 const main = express();
@@ -50,9 +50,16 @@ main.get("/", function(req, res) {
 /**
  * routes.
  */
-main.post("/question/hwpMetadataExtract", _(questionController.hwpMetadataExtract));
-main.post("/question/questionSplit", _(questionController.questionSplit));
-main.post("/question/makePaper", _(questionController.makePaper));
+main.post("/dog/createDog/:dogKey", _(dogController.createDog));
+main.post("/dog/setDogSoundType/:dogKey/:soundKey", _(dogController.setDogSoundType));
+main.get("/dog/getDogSoundType/:soundKey", _(dogController.getDogSoundType));
+main.post("/dog/uploadDogSound/:dogKey/:soundKey", _(dogController.uploadDogSound));
+main.get("/dog/getDogSound/:soundKey", _(dogController.getDogSound));
+main.get("/dog/getAllDogSound/:dogKey", _(dogController.getAllDogSound));
+
+//TODO musicController
+main.post("/dog/startMusic", _(dogController.startMusic));
+main.get("/dog/getMusicState", _(dogController.getMusicState));
 
 
 /*** API DOCS
