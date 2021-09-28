@@ -1,0 +1,23 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SPLIT_QUESTION_SQS_URL = exports.EXTRACT_METADATA_SQS_URL = exports.GONGBACK_SNS = exports.MERGE_SNS = exports.EXTRACT_METADATA_SNS = exports.SPLIT_QUESTION_SNS = exports.MAKE_PAPER_LAMBDA = exports.QUESTION_SPLIT_LAMBDA = exports.QUESTION_EXTRACTOR_LAMBDA = exports.LAYOUT_FILE = exports.HWP_METADATA_BUCKET = exports.QUESTIONS_BUCKET = exports.AWS_REGION = exports.AWS_SECRET_ACCESS_KEY = exports.AWS_ACCESS_KEY = exports.DATABASE = exports.PASSWORD = exports.USERNAME = exports.DB_URL = void 0;
+exports.DB_URL = process.env["DB_URL"];
+exports.USERNAME = process.env["USERNAME"];
+exports.PASSWORD = process.env["PASSWORD"];
+exports.DATABASE = process.env["DATABASE"];
+exports.AWS_ACCESS_KEY = process.env["AWS_ACCESS_KEY"];
+exports.AWS_SECRET_ACCESS_KEY = process.env["AWS_SECRET_ACCESS_KEY"];
+exports.AWS_REGION = process.env["AWS_REGION"];
+exports.QUESTIONS_BUCKET = process.env["QUESTIONS_BUCKET"];
+exports.HWP_METADATA_BUCKET = process.env["HWP_METADATA_BUCKET"];
+exports.LAYOUT_FILE = process.env["LAYOUT_FILE"];
+exports.QUESTION_EXTRACTOR_LAMBDA = process.env["QUESTION_EXTRACTOR_LAMBDA"];
+exports.QUESTION_SPLIT_LAMBDA = process.env["QUESTION_SPLIT_LAMBDA"];
+exports.MAKE_PAPER_LAMBDA = process.env["MAKE_PAPER_LAMBDA"];
+exports.SPLIT_QUESTION_SNS = process.env["SPLIT_QUESTION_SNS"];
+exports.EXTRACT_METADATA_SNS = process.env["EXTRACT_METADATA_SNS"];
+exports.MERGE_SNS = process.env["MERGE_SNS"];
+exports.GONGBACK_SNS = process.env["GONGBACK_SNS"];
+exports.EXTRACT_METADATA_SQS_URL = process.env["EXTRACT_METADATA_SQS_URL"];
+exports.SPLIT_QUESTION_SQS_URL = process.env["SPLIT_QUESTION_SQS_URL"];
+//# sourceMappingURL=secrets.js.map

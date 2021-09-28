@@ -13,7 +13,6 @@ import {NextFunction} from "express";
 import {Request, Response} from "express";
 import {responseMiddleware, requestMiddleware} from "./middleware/RqrsMiddleware";
 import swaggerUi from "swagger-ui-express";
-import {getAllDogSound, setDogSoundType} from "./controllers/dog.controller";
 
 // Create Express server
 const main = express();

@@ -1,0 +1,1 @@
+{"version":3,"file":"checking.js","sourceRoot":"","sources":["../../src/util/checking.ts"],"names":[],"mappings":";;;AAAA,MAAM,YAAY;IACd,WAAW,CAAC,eAAyB,EAAE,aAAuB,EAAE,eAAyB;QACrF,OAAO,eAAe,CAAC,MAAM,IAAI,CAAC,IAAI,aAAa,CAAC,MAAM,IAAI,CAAC,IAAI,eAAe,CAAC,MAAM,IAAI,CAAC,CAAC;IACnG,CAAC;CACJ;AAEY,QAAA,YAAY,GAAG,IAAI,YAAY,EAAE,CAAC"}
