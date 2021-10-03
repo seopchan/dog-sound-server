@@ -63,6 +63,7 @@ main.get("/", function (req, res) {
 /**
  * routes.
  */
+main.get("/test", _(dogController.test));
 main.post("/dog/createDog/:dogKey", _(dogController.createDog));
 main.post("/dog/setDogSoundType/:dogKey/:soundKey", _(dogController.setDogSoundType));
 main.get("/dog/getDogSoundType/:soundKey", _(dogController.getDogSoundType));

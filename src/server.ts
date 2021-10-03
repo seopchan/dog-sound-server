@@ -171,7 +171,7 @@ async function startQuestionSplitterSqsConsumer() {
     if (force) {
         //스테이징 서버..
         console.log("ALTER SYNC");
-        await db.sync({alter: true});
+        await db.sync({alter: false});
         await startMetadataExtractSqsConsumer();
         await startQuestionSplitterSqsConsumer();
     } else {

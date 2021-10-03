@@ -17,9 +17,15 @@ AWS.config.update({
     secretAccessKey: AWS_SECRET_ACCESS_KEY
 });
 
-export const createDog = async(req: Request, res: Response, next: NextFunction) => {
-    console.log(`createDog : ${JSON.stringify(req.params)}`);
+export const test = async(req: Request, res: Response, next: NextFunction) => {
+    return res.sendRs({
+        data: {
+            test: "test"
+        }
+    });
+};
 
+export const createDog = async(req: Request, res: Response, next: NextFunction) => {
     const dogKey = req.params.dogKey as string;
 
     if (!paramUtil.checkParam(dogKey)) {
@@ -35,7 +41,8 @@ export const createDog = async(req: Request, res: Response, next: NextFunction) 
 
 export const setDogSoundType = async(req: Request, res: Response, next: NextFunction) => {
     const dogKey = req.params.dogKey as string;
-    const soundKey = req.params.soundKey as string;
+    // const soundKey = req.params.soundKey as string;
+    const soundKey = req.query.soundKey as string;
 
     if (!paramUtil.checkParam(dogKey, soundKey)) {
         return res.sendBadRequestError();

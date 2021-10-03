@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMusicState = exports.startMusic = exports.getAllDogSound = exports.getDogSound = exports.uploadDogSound = exports.getDogSoundType = exports.setDogSoundType = exports.createDog = void 0;
+exports.getMusicState = exports.startMusic = exports.getAllDogSound = exports.getDogSound = exports.uploadDogSound = exports.getDogSoundType = exports.setDogSoundType = exports.createDog = exports.test = void 0;
 const aws_sdk_1 = __importDefault(require("aws-sdk"));
 const param_1 = require("../util/param");
 const secrets_1 = require("../util/secrets");
@@ -23,8 +23,14 @@ aws_sdk_1.default.config.update({
     accessKeyId: secrets_1.AWS_ACCESS_KEY,
     secretAccessKey: secrets_1.AWS_SECRET_ACCESS_KEY
 });
+exports.test = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    return res.sendRs({
+        data: {
+            test: "test"
+        }
+    });
+});
 exports.createDog = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(`createDog : ${JSON.stringify(req.params)}`);
     const dogKey = req.params.dogKey;
     if (!param_1.paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();
