@@ -175,14 +175,14 @@ function startQuestionSplitterSqsConsumer() {
     if (force) {
         //스테이징 서버..
         console.log("ALTER SYNC");
-        yield DB_1.db.sync({ alter: true });
+        yield DB_1.db.sync({ alter: false });
         yield startMetadataExtractSqsConsumer();
         yield startQuestionSplitterSqsConsumer();
     }
     else {
         //개발 로컬
         console.log("FORCE SYNC");
-        yield DB_1.db.sync({ force: true });
+        yield DB_1.db.sync({ force: false });
         yield syncData();
         yield startMetadataExtractSqsConsumer();
         yield startQuestionSplitterSqsConsumer();

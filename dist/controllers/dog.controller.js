@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMusicState = exports.startMusic = exports.getAllDogSound = exports.getDogSound = exports.uploadDogSound = exports.getDogSoundType = exports.setDogSoundType = exports.createDog = exports.test = void 0;
+exports.stopMusic = exports.playMusic = exports.getAllDogCrying = exports.addDogCrying = exports.getDog = exports.createDog = exports.test = void 0;
 const aws_sdk_1 = __importDefault(require("aws-sdk"));
 const param_1 = require("../util/param");
 const secrets_1 = require("../util/secrets");
@@ -40,66 +40,89 @@ exports.createDog = (req, res, next) => __awaiter(void 0, void 0, void 0, functi
         data: dog
     });
 });
-exports.setDogSoundType = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const dogKey = req.params.dogKey;
-    const soundKey = req.params.soundKey;
-    if (!param_1.paramUtil.checkParam(dogKey, soundKey)) {
-        return res.sendBadRequestError();
-    }
-    const sound = yield sound_service_1.soundService.setSound(dogKey, soundKey);
-    return res.sendRs({
-        data: sound
-    });
-});
-exports.getDogSoundType = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const soundKey = req.params.soundKey;
-    if (!param_1.paramUtil.checkParam(soundKey)) {
-        return res.sendBadRequestError();
-    }
-    const sound = yield sound_service_1.soundService.getSound(soundKey);
-    return res.sendRs({
-        data: sound
-    });
-});
-exports.uploadDogSound = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const dogKey = req.params.dogKey;
-    const soundKey = req.params.soundKey;
-    if (!param_1.paramUtil.checkParam(dogKey, soundKey)) {
-        return res.sendBadRequestError();
-    }
-    const sound = yield sound_service_1.soundService.setSound(dogKey, soundKey);
-    return res.sendRs({
-        data: sound
-    });
-});
-exports.getDogSound = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    const soundKey = req.params.soundKey;
-    if (!param_1.paramUtil.checkParam(soundKey)) {
-        return res.sendBadRequestError();
-    }
-    const sound = yield sound_service_1.soundService.getSound(soundKey);
-    return res.sendRs({
-        data: sound
-    });
-});
-exports.getAllDogSound = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+exports.getDog = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const dogKey = req.params.dogKey;
     if (!param_1.paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();
     }
-    const sounds = yield sound_service_1.soundService.getAllSound(dogKey);
+    const dog = yield dog_service_1.dogService.getDog(dogKey);
     return res.sendRs({
-        data: sounds
+        data: dog
     });
 });
-exports.startMusic = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!param_1.paramUtil.checkParam( /* TODO */)) {
+exports.addDogCrying = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const dogKey = req.params.dogKey;
+    const soundKey = req.query.soundKey;
+    const type = req.query.type;
+    if (!param_1.paramUtil.checkParam(dogKey, soundKey, type)) {
         return res.sendBadRequestError();
     }
+    const sound = yield sound_service_1.soundService.addDogCrying(dogKey, soundKey, type);
+    return res.sendRs({
+        data: sound
+    });
 });
-exports.getMusicState = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!param_1.paramUtil.checkParam( /* TODO */)) {
+exports.getAllDogCrying = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const dogKey = req.params.dogKey;
+    if (!param_1.paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();
     }
+    const sounds = yield sound_service_1.soundService.getAllDogCrying(dogKey);
+    const todaySounds = [];
+    const yesterdaySounds = [];
+    const monthSounds = [];
+    const today = new Date();
+    yield sounds.map(sound => {
+        const soundDate = new Date(sound.createdAt);
+        soundDate.setHours(soundDate.getHours() + 9);
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth() &&
+            soundDate.getDate() == today.getDate()) {
+            todaySounds.push(sound);
+            console.log("today Data");
+        }
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth() &&
+            soundDate.getDate() == today.getDate() - 1) {
+            yesterdaySounds.push(sound);
+            console.log("yesterday Data");
+        }
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth()) {
+            monthSounds.push(sound);
+            console.log("month Data");
+        }
+    });
+    return res.sendRs({
+        data: {
+            todaySounds: todaySounds,
+            yesterdaySounds: yesterdaySounds,
+            monthSounds: monthSounds,
+        }
+    });
+});
+exports.playMusic = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const dogKey = req.params.dogKey;
+    if (!param_1.paramUtil.checkParam(dogKey)) {
+        return res.sendBadRequestError();
+    }
+    const result = yield dog_service_1.dogService.playMusic(dogKey);
+    return res.sendRs({
+        data: {
+            result: result
+        }
+    });
+});
+exports.stopMusic = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const dogKey = req.params.dogKey;
+    if (!param_1.paramUtil.checkParam(dogKey)) {
+        return res.sendBadRequestError();
+    }
+    const result = yield dog_service_1.dogService.stopMusic(dogKey);
+    return res.sendRs({
+        data: {
+            result: result
+        }
+    });
 });
 //# sourceMappingURL=dog.controller.js.map

@@ -14,11 +14,7 @@ export class Dog extends Model<Dog> implements DogSchema {
 
     @AllowNull(false)
     @Column
-    musicTime: number;
-
-    @AllowNull(false)
-    @Column
-    soundCount: number;
+    isMusicPlaying: boolean;
 
     @HasMany(() => Sound)
     sounds: Sound[]

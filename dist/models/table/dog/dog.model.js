@@ -25,13 +25,8 @@ __decorate([
 __decorate([
     sequelize_typescript_1.AllowNull(false),
     sequelize_typescript_1.Column,
-    __metadata("design:type", Number)
-], Dog.prototype, "musicTime", void 0);
-__decorate([
-    sequelize_typescript_1.AllowNull(false),
-    sequelize_typescript_1.Column,
-    __metadata("design:type", Number)
-], Dog.prototype, "soundCount", void 0);
+    __metadata("design:type", Boolean)
+], Dog.prototype, "isMusicPlaying", void 0);
 __decorate([
     sequelize_typescript_1.HasMany(() => sound_model_1.Sound),
     __metadata("design:type", Array)

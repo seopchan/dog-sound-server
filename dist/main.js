@@ -65,14 +65,9 @@ main.get("/", function (req, res) {
  */
 main.get("/test", _(dogController.test));
 main.post("/dog/createDog/:dogKey", _(dogController.createDog));
-main.post("/dog/setDogSoundType/:dogKey/:soundKey", _(dogController.setDogSoundType));
-main.get("/dog/getDogSoundType/:soundKey", _(dogController.getDogSoundType));
-main.post("/dog/uploadDogSound/:dogKey/:soundKey", _(dogController.uploadDogSound));
-main.get("/dog/getDogSound/:soundKey", _(dogController.getDogSound));
-main.get("/dog/getAllDogSound/:dogKey", _(dogController.getAllDogSound));
-//TODO musicController
-main.post("/dog/startMusic", _(dogController.startMusic));
-main.get("/dog/getMusicState", _(dogController.getMusicState));
+main.get("/dog/getDog/:dogKey", _(dogController.getDog));
+main.post("/dog/addDogCrying/:dogKey", _(dogController.addDogCrying));
+main.get("/dog/getAllDogCrying/:dogKey", _(dogController.getAllDogCrying));
 /*** API DOCS
  * TODO run only dev
  */

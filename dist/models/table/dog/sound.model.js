@@ -28,6 +28,11 @@ __decorate([
     __metadata("design:type", String)
 ], Sound.prototype, "dogKey", void 0);
 __decorate([
+    sequelize_typescript_1.AllowNull,
+    sequelize_typescript_1.Column,
+    __metadata("design:type", String)
+], Sound.prototype, "type", void 0);
+__decorate([
     sequelize_typescript_1.BelongsTo(() => dog_model_1.Dog, "dogKey"),
     __metadata("design:type", dog_model_1.Dog)
 ], Sound.prototype, "dog", void 0);

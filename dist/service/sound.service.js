@@ -24,15 +24,16 @@ aws_sdk_1.default.config.update({
     secretAccessKey: secrets_1.AWS_SECRET_ACCESS_KEY
 });
 class SoundService {
-    setSound(dogKey, soundKey, outerTransaction) {
+    addDogCrying(dogKey, soundKey, cryingType, outerTransaction) {
         return __awaiter(this, void 0, void 0, function* () {
-            const invalidParam = !param_1.paramUtil.checkParam(dogKey, soundKey);
+            const invalidParam = !param_1.paramUtil.checkParam(dogKey, soundKey, cryingType);
             if (invalidParam) {
                 throw new Error(ErrorStore_1.errorStore.INVALID_PARAM);
             }
             const soundSchema = {
                 soundKey: soundKey,
                 dogKey: dogKey,
+                type: cryingType,
             };
             const sound = yield sound_model_1.Sound.create(soundSchema, {
                 transaction: outerTransaction
@@ -40,22 +41,7 @@ class SoundService {
             return sound;
         });
     }
-    getSound(soundKey, outerTransaction) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const invalidParam = !param_1.paramUtil.checkParam(soundKey);
-            if (invalidParam) {
-                throw new Error(ErrorStore_1.errorStore.INVALID_PARAM);
-            }
-            const sound = yield sound_model_1.Sound.findByPk(soundKey, {
-                transaction: outerTransaction
-            });
-            if (!sound) {
-                throw new Error(ErrorStore_1.errorStore.NOT_FOUND);
-            }
-            return sound;
-        });
-    }
-    getAllSound(dogKey, outerTransaction) {
+    getAllDogCrying(dogKey, outerTransaction) {
         return __awaiter(this, void 0, void 0, function* () {
             const invalidParam = !param_1.paramUtil.checkParam(dogKey);
             if (invalidParam) {
@@ -64,8 +50,12 @@ class SoundService {
             const sounds = yield sound_model_1.Sound.findAll({
                 where: {
                     dogKey: dogKey
-                }
+                },
+                transaction: outerTransaction
             });
+            if (!sounds) {
+                throw new Error(ErrorStore_1.errorStore.NOT_FOUND);
+            }
             return sounds;
         });
     }

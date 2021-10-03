@@ -32,13 +32,67 @@ class DogService {
             }
             const dogSchema = {
                 dogKey: dogKey,
-                soundCount: 0,
-                musicTime: 0,
+                isMusicPlaying: false,
             };
             const dog = yield dog_model_1.Dog.create(dogSchema, {
                 transaction: outerTransaction
             });
             return dog;
+        });
+    }
+    getDog(dogKey, outerTransaction) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const invalidParam = !param_1.paramUtil.checkParam(dogKey);
+            if (invalidParam) {
+                throw new Error(ErrorStore_1.errorStore.INVALID_PARAM);
+            }
+            const dog = yield dog_model_1.Dog.findByPk(dogKey, {
+                transaction: outerTransaction
+            });
+            if (!dog) {
+                throw new Error(ErrorStore_1.errorStore.NOT_FOUND);
+            }
+            return dog;
+        });
+    }
+    playMusic(dogKey, outerTransaction) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const invalidParam = !param_1.paramUtil.checkParam(dogKey);
+            if (invalidParam) {
+                throw new Error(ErrorStore_1.errorStore.INVALID_PARAM);
+            }
+            const changeState = yield dog_model_1.Dog.update({
+                isPlayMusic: true
+            }, {
+                where: {
+                    dogKey: dogKey
+                },
+                transaction: outerTransaction
+            });
+            if (!changeState) {
+                throw new Error(ErrorStore_1.errorStore.NOT_FOUND);
+            }
+            return true;
+        });
+    }
+    stopMusic(dogKey, outerTransaction) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const invalidParam = !param_1.paramUtil.checkParam(dogKey);
+            if (invalidParam) {
+                throw new Error(ErrorStore_1.errorStore.INVALID_PARAM);
+            }
+            const changeState = yield dog_model_1.Dog.update({
+                isPlayMusic: false
+            }, {
+                where: {
+                    dogKey: dogKey
+                },
+                transaction: outerTransaction
+            });
+            if (!changeState) {
+                throw new Error(ErrorStore_1.errorStore.NOT_FOUND);
+            }
+            return true;
         });
     }
     checkType(soundType) {

@@ -10,6 +10,7 @@ import {dogService} from "../service/dog.service";
 import {Dog} from "../models/table/dog/dog.model";
 import {Sound} from "../models/table/dog/sound.model";
 import {soundService} from "../service/sound.service";
+import {DogCryingType} from "../models/schema/dog/sound.schema";
 
 AWS.config.update({
     region: AWS_REGION,
@@ -39,90 +40,109 @@ export const createDog = async(req: Request, res: Response, next: NextFunction) 
     });
 };
 
-export const setDogSoundType = async(req: Request, res: Response, next: NextFunction) => {
-    const dogKey = req.params.dogKey as string;
-    // const soundKey = req.params.soundKey as string;
-    const soundKey = req.query.soundKey as string;
-
-    if (!paramUtil.checkParam(dogKey, soundKey)) {
-        return res.sendBadRequestError();
-    }
-
-    const sound: Sound = await soundService.setSound(dogKey, soundKey);
-
-
-    return res.sendRs({
-        data: sound
-    });
-};
-
-export const getDogSoundType = async(req: Request, res: Response, next: NextFunction) => {
-    const soundKey = req.params.soundKey as string;
-
-    if (!paramUtil.checkParam(soundKey)) {
-        return res.sendBadRequestError();
-    }
-
-    const sound: Sound = await soundService.getSound(soundKey);
-
-    return res.sendRs({
-        data : sound
-    });
-};
-
-export const uploadDogSound = async(req: Request, res: Response, next: NextFunction) => {
-    const dogKey = req.params.dogKey as string;
-    const soundKey = req.params.soundKey as string;
-
-    if (!paramUtil.checkParam(dogKey, soundKey)) {
-        return res.sendBadRequestError();
-    }
-
-    const sound: Sound = await soundService.setSound(dogKey, soundKey);
-
-
-    return res.sendRs({
-        data: sound
-    });
-};
-
-export const getDogSound = async(req: Request, res: Response, next: NextFunction) => {
-    const soundKey = req.params.soundKey as string;
-
-    if (!paramUtil.checkParam(soundKey)) {
-        return res.sendBadRequestError();
-    }
-
-    const sound: Sound = await soundService.getSound(soundKey);
-
-    return res.sendRs({
-        data : sound
-    });
-};
-
-export const getAllDogSound = async(req: Request, res: Response, next: NextFunction) => {
+export const getDog = async(req: Request, res: Response, next: NextFunction) => {
     const dogKey = req.params.dogKey as string;
 
     if (!paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();
     }
 
-    const sounds: Sound[] = await soundService.getAllSound(dogKey);
+    const dog: Dog = await dogService.getDog(dogKey);
 
     return res.sendRs({
-        data : sounds
+        data: dog
     });
 };
 
-export const startMusic = async(req: Request, res: Response, next: NextFunction) => {
-    if (!paramUtil.checkParam(/* TODO */)) {
+export const addDogCrying = async(req: Request, res: Response, next: NextFunction) => {
+    const dogKey = req.params.dogKey as string;
+    const soundKey = req.query.soundKey as string;
+    const type = req.query.type as DogCryingType;
+
+    if (!paramUtil.checkParam(dogKey, soundKey, type)) {
         return res.sendBadRequestError();
     }
+
+    const sound: Sound = await soundService.addDogCrying(dogKey, soundKey, type);
+
+    return res.sendRs({
+        data: sound
+    });
 };
 
-export const getMusicState = async(req: Request, res: Response, next: NextFunction) => {
-    if (!paramUtil.checkParam(/* TODO */)) {
+export const getAllDogCrying = async(req: Request, res: Response, next: NextFunction) => {
+    const dogKey = req.params.dogKey as string;
+
+    if (!paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();
     }
 
+    const sounds: Sound[] = await soundService.getAllDogCrying(dogKey);
+    const todaySounds: Sound[]=[];
+    const yesterdaySounds: Sound[]=[];
+    const monthSounds: Sound[]=[];
+    const today = new Date();
+    await sounds.map(sound => {
+        const soundDate = new Date(sound.createdAt);
+        soundDate.setHours(soundDate.getHours()+9);
+
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth() &&
+            soundDate.getDate() == today.getDate()
+        ) {
+            todaySounds.push(sound);
+            console.log("today Data");
+        }
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth() &&
+            soundDate.getDate() == today.getDate()-1) {
+            yesterdaySounds.push(sound);
+            console.log("yesterday Data");
+        }
+        if (soundDate.getFullYear() == today.getFullYear() &&
+            soundDate.getMonth() == today.getMonth()) {
+            monthSounds.push(sound);
+            console.log("month Data");
+        }
+    });
+
+    return res.sendRs({
+        data: {
+            todaySounds: todaySounds,
+            yesterdaySounds: yesterdaySounds,
+            monthSounds: monthSounds,
+        }
+    });
+};
+
+export const playMusic = async(req: Request, res: Response, next: NextFunction) => {
+    const dogKey = req.params.dogKey as string;
+
+    if (!paramUtil.checkParam(dogKey)) {
+        return res.sendBadRequestError();
+    }
+
+    const result: boolean = await dogService.playMusic(dogKey);
+
+    return res.sendRs({
+        data: {
+            result: result
+        }
+    });
+};
+
+export const stopMusic = async(req: Request, res: Response, next: NextFunction) => {
+    const dogKey = req.params.dogKey as string;
+
+    if (!paramUtil.checkParam(dogKey)) {
+        return res.sendBadRequestError();
+    }
+
+    const result: boolean = await dogService.stopMusic(dogKey);
+
+    return res.sendRs({
+        data: {
+            result: result
+        }
+    });
 };

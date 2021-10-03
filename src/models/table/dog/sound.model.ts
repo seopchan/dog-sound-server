@@ -16,6 +16,10 @@ export class Sound extends Model<Sound> implements SoundSchema {
     @Column
     dogKey: string;
 
+    @AllowNull
+    @Column
+    type: string;
+
     @BelongsTo(() => Dog, "dogKey")
     dog: Dog;
 }
