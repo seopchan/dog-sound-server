@@ -68,6 +68,8 @@ main.post("/dog/createDog/:dogKey", _(dogController.createDog));
 main.get("/dog/getDog/:dogKey", _(dogController.getDog));
 main.post("/dog/addDogCrying/:dogKey", _(dogController.addDogCrying));
 main.get("/dog/getAllDogCrying/:dogKey", _(dogController.getAllDogCrying));
+main.post("/dog/startMusic/:dogKey", _(dogController.startMusic));
+main.post("/dog/stopMusic/:dogKey", _(dogController.stopMusic));
 /*** API DOCS
  * TODO run only dev
  */

@@ -166,3 +166,59 @@ paths:
           description: "Not Found : 파일이 없습니다."
         500:
           description: "Unexpected Exception : 알 수 없는 에러입니다."
+
+  /dog/startMusic/{dogKey}:
+    post:
+      summary: "음악 재생."
+      description: "음악 재생."
+      tags:
+        - dog
+      parameters:
+        - name: dogKey
+          in: path
+          type: string
+          required: true
+
+      responses:
+        200:
+          description: "결과"
+          schema:
+            properties:
+              result:
+                type: string
+        400:
+          description: "Bad Request : 요청이 잘못되었습니다."
+        403:
+          description: "Forbidden : 권한이 없습니다."
+        404:
+          description: "Not Found : 파일이 없습니다."
+        500:
+          description: "Unexpected Exception : 알 수 없는 에러입니다."
+
+  /dog/stopMusic/{dogKey}:
+    post:
+      summary: "음악 정지."
+      description: "음악 정지."
+      tags:
+        - dog
+      parameters:
+        - name: dogKey
+          in: path
+          type: string
+          required: true
+
+      responses:
+        200:
+          description: "결과"
+          schema:
+            properties:
+              result:
+                type: string
+        400:
+          description: "Bad Request : 요청이 잘못되었습니다."
+        403:
+          description: "Forbidden : 권한이 없습니다."
+        404:
+          description: "Not Found : 파일이 없습니다."
+        500:
+          description: "Unexpected Exception : 알 수 없는 에러입니다."

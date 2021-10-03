@@ -8,21 +8,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.soundService = void 0;
-const aws_sdk_1 = __importDefault(require("aws-sdk"));
-const secrets_1 = require("../util/secrets");
 const ErrorStore_1 = require("../util/ErrorStore");
 const param_1 = require("../util/param");
 const sound_model_1 = require("../models/table/dog/sound.model");
-aws_sdk_1.default.config.update({
-    region: secrets_1.AWS_REGION,
-    accessKeyId: secrets_1.AWS_ACCESS_KEY,
-    secretAccessKey: secrets_1.AWS_SECRET_ACCESS_KEY
-});
 class SoundService {
     addDogCrying(dogKey, soundKey, cryingType, outerTransaction) {
         return __awaiter(this, void 0, void 0, function* () {

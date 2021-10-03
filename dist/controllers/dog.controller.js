@@ -12,17 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stopMusic = exports.playMusic = exports.getAllDogCrying = exports.addDogCrying = exports.getDog = exports.createDog = exports.test = void 0;
-const aws_sdk_1 = __importDefault(require("aws-sdk"));
+exports.stopMusic = exports.startMusic = exports.getAllDogCrying = exports.addDogCrying = exports.getDog = exports.createDog = exports.test = void 0;
 const param_1 = require("../util/param");
-const secrets_1 = require("../util/secrets");
 const dog_service_1 = require("../service/dog.service");
 const sound_service_1 = require("../service/sound.service");
-aws_sdk_1.default.config.update({
-    region: secrets_1.AWS_REGION,
-    accessKeyId: secrets_1.AWS_ACCESS_KEY,
-    secretAccessKey: secrets_1.AWS_SECRET_ACCESS_KEY
-});
+const moment_timezone_1 = __importDefault(require("moment-timezone"));
 exports.test = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     return res.sendRs({
         data: {
@@ -71,37 +65,31 @@ exports.getAllDogCrying = (req, res, next) => __awaiter(void 0, void 0, void 0, 
     const todaySounds = [];
     const yesterdaySounds = [];
     const monthSounds = [];
-    const today = new Date();
+    const today = moment_timezone_1.default.tz("Asia/Seoul");
     yield sounds.map(sound => {
-        const soundDate = new Date(sound.createdAt);
-        soundDate.setHours(soundDate.getHours() + 9);
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth() &&
-            soundDate.getDate() == today.getDate()) {
+        const soundDate = moment_timezone_1.default(sound.createdAt).tz("Asia/Seoul");
+        if (today.isSame(soundDate, "day")) {
             todaySounds.push(sound);
             console.log("today Data");
         }
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth() &&
-            soundDate.getDate() == today.getDate() - 1) {
+        if (today.isAfter(soundDate, "day")) {
             yesterdaySounds.push(sound);
             console.log("yesterday Data");
         }
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth()) {
+        if (today.isSame(soundDate, "month")) {
             monthSounds.push(sound);
             console.log("month Data");
         }
     });
     return res.sendRs({
         data: {
-            todaySounds: todaySounds,
-            yesterdaySounds: yesterdaySounds,
-            monthSounds: monthSounds,
+            todayCount: todaySounds.length,
+            yesterdayCount: yesterdaySounds.length,
+            monthCount: monthSounds.length,
         }
     });
 });
-exports.playMusic = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+exports.startMusic = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const dogKey = req.params.dogKey;
     if (!param_1.paramUtil.checkParam(dogKey)) {
         return res.sendBadRequestError();

@@ -1,22 +1,11 @@
 import {NextFunction, Request, Response} from "express";
-import AWS from "aws-sdk";
 import {paramUtil} from "../util/param";
-import {
-    AWS_ACCESS_KEY,
-    AWS_REGION,
-    AWS_SECRET_ACCESS_KEY,
-} from "../util/secrets";
 import {dogService} from "../service/dog.service";
 import {Dog} from "../models/table/dog/dog.model";
 import {Sound} from "../models/table/dog/sound.model";
 import {soundService} from "../service/sound.service";
 import {DogCryingType} from "../models/schema/dog/sound.schema";
-
-AWS.config.update({
-    region: AWS_REGION,
-    accessKeyId: AWS_ACCESS_KEY,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY
-});
+import moment from "moment-timezone";
 
 export const test = async(req: Request, res: Response, next: NextFunction) => {
     return res.sendRs({
@@ -81,26 +70,19 @@ export const getAllDogCrying = async(req: Request, res: Response, next: NextFunc
     const todaySounds: Sound[]=[];
     const yesterdaySounds: Sound[]=[];
     const monthSounds: Sound[]=[];
-    const today = new Date();
+    const today = moment.tz("Asia/Seoul");
     await sounds.map(sound => {
-        const soundDate = new Date(sound.createdAt);
-        soundDate.setHours(soundDate.getHours()+9);
-
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth() &&
-            soundDate.getDate() == today.getDate()
+        const soundDate = moment(sound.createdAt).tz("Asia/Seoul");
+        if (today.isSame(soundDate, "day")
         ) {
             todaySounds.push(sound);
             console.log("today Data");
         }
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth() &&
-            soundDate.getDate() == today.getDate()-1) {
+        if (today.isAfter(soundDate, "day")) {
             yesterdaySounds.push(sound);
             console.log("yesterday Data");
         }
-        if (soundDate.getFullYear() == today.getFullYear() &&
-            soundDate.getMonth() == today.getMonth()) {
+        if (today.isSame(soundDate, "month")) {
             monthSounds.push(sound);
             console.log("month Data");
         }
@@ -108,14 +90,14 @@ export const getAllDogCrying = async(req: Request, res: Response, next: NextFunc
 
     return res.sendRs({
         data: {
-            todaySounds: todaySounds,
-            yesterdaySounds: yesterdaySounds,
-            monthSounds: monthSounds,
+            todayCount: todaySounds.length,
+            yesterdayCount : yesterdaySounds.length,
+            monthCount : monthSounds.length,
         }
     });
 };
 
-export const playMusic = async(req: Request, res: Response, next: NextFunction) => {
+export const startMusic = async(req: Request, res: Response, next: NextFunction) => {
     const dogKey = req.params.dogKey as string;
 
     if (!paramUtil.checkParam(dogKey)) {

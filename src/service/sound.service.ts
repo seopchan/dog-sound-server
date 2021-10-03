@@ -1,16 +1,8 @@
-import AWS from "aws-sdk";
-import {AWS_ACCESS_KEY, AWS_REGION, AWS_SECRET_ACCESS_KEY} from "../util/secrets";
 import {Transaction} from "sequelize";
 import {errorStore} from "../util/ErrorStore";
 import {paramUtil} from "../util/param";
 import {Sound} from "../models/table/dog/sound.model";
 import {DogCryingType, SoundSchema} from "../models/schema/dog/sound.schema";
-
-AWS.config.update({
-    region: AWS_REGION,
-    accessKeyId: AWS_ACCESS_KEY,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY
-});
 
 class SoundService {
     async addDogCrying(dogKey: string, soundKey: string, cryingType: DogCryingType, outerTransaction?: Transaction): Promise<Sound> {

@@ -23,19 +23,10 @@ if (fs_1.default.existsSync(".env")) {
 const main_1 = __importDefault(require("./main"));
 require("source-map-support/register");
 const passport_1 = __importDefault(require("passport"));
-const aws_sdk_1 = __importDefault(require("aws-sdk"));
 const DB_1 = require("./models/DB");
-const sqs_consumer_1 = require("sqs-consumer");
-const secrets_1 = require("./util/secrets");
-const aws_service_1 = require("./service/aws.service");
-if (!process.env["AWS_ACCESS_KEY"]) {
-    throw new Error("MISSING AWS_ACCESS_KEY");
-}
-aws_sdk_1.default.config.update({
-    accessKeyId: process.env["AWS_ACCESS_KEY"],
-    secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"],
-    region: process.env["AWS_REGION"],
-});
+// if(!process.env["AWS_ACCESS_KEY"]) {
+//     throw new Error("MISSING AWS_ACCESS_KEY");
+// }
 main_1.default.use(passport_1.default.initialize());
 /**
  * Error Handler. Provides full stack - remove for production
@@ -44,126 +35,6 @@ main_1.default.use(errorhandler_1.default());
 function syncData() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("syncData");
-    });
-}
-function processError(receiptHandle, err, sqs) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const deleteParams = {
-            QueueUrl: secrets_1.EXTRACT_METADATA_SQS_URL,
-            ReceiptHandle: receiptHandle
-        };
-        console.error("Remove Message Because : " + err.message);
-        sqs.deleteMessage(deleteParams);
-        yield aws_service_1.awsService.SNSNotification(String(err), secrets_1.EXTRACT_METADATA_SNS);
-    });
-}
-function startMetadataExtractSqsConsumer() {
-    return __awaiter(this, void 0, void 0, function* () {
-        let receiptHandle;
-        try {
-            const sqs = new aws_sdk_1.default.SQS({
-                apiVersion: "2012-11-05",
-            });
-            const app = sqs_consumer_1.Consumer.create({
-                queueUrl: secrets_1.EXTRACT_METADATA_SQS_URL,
-                messageAttributeNames: ["All"],
-                visibilityTimeout: 15 * 60,
-                handleMessage: (message) => __awaiter(this, void 0, void 0, function* () {
-                    receiptHandle = message.ReceiptHandle;
-                    try {
-                        // await extractMetadataTaskService.extractMetadata(message);
-                    }
-                    catch (e) {
-                        if (receiptHandle != null) {
-                            yield processError(receiptHandle, e, sqs);
-                        }
-                        else {
-                            console.log("receiptHandle is undefined");
-                            yield aws_service_1.awsService.SNSNotification(String(e + "\nreceiptHandle is undefined"), secrets_1.EXTRACT_METADATA_SNS);
-                        }
-                    }
-                }),
-                sqs: sqs
-            });
-            app.on("error", (err) => {
-                if (receiptHandle) {
-                    processError(receiptHandle, err, sqs);
-                }
-                else {
-                    console.log("receiptHandle is undefined");
-                }
-                receiptHandle = undefined;
-            });
-            app.on("processing_error", (err) => {
-                if (receiptHandle) {
-                    processError(receiptHandle, err, sqs);
-                }
-                else {
-                    console.log("receiptHandle is undefined");
-                }
-                receiptHandle = undefined;
-            });
-            app.start();
-        }
-        catch (e) {
-            console.log(e);
-            yield aws_service_1.awsService.SNSNotification(String(e), secrets_1.EXTRACT_METADATA_SNS);
-        }
-    });
-}
-function startQuestionSplitterSqsConsumer() {
-    return __awaiter(this, void 0, void 0, function* () {
-        let receiptHandle;
-        try {
-            const sqs = new aws_sdk_1.default.SQS({
-                apiVersion: "2012-11-05"
-            });
-            const app = sqs_consumer_1.Consumer.create({
-                queueUrl: secrets_1.SPLIT_QUESTION_SQS_URL,
-                messageAttributeNames: ["All"],
-                visibilityTimeout: 15 * 60,
-                handleMessage: (message) => __awaiter(this, void 0, void 0, function* () {
-                    console.log("message receipt");
-                    receiptHandle = message.ReceiptHandle;
-                    try {
-                        // await splitQuestionTaskService.splitQuestion(message);
-                    }
-                    catch (e) {
-                        if (receiptHandle != null) {
-                            yield processError(receiptHandle, e, sqs);
-                        }
-                        else {
-                            console.log("receiptHandle is undefined");
-                            yield aws_service_1.awsService.SNSNotification(String(e + "\nreceiptHandle is undefined"), secrets_1.SPLIT_QUESTION_SNS);
-                        }
-                    }
-                }),
-                sqs: sqs
-            });
-            app.on("error", (err) => {
-                if (receiptHandle) {
-                    processError(receiptHandle, err, sqs);
-                }
-                else {
-                    console.log("receiptHandle is undefined");
-                }
-                receiptHandle = undefined;
-            });
-            app.on("processing_error", (err) => {
-                if (receiptHandle) {
-                    processError(receiptHandle, err, sqs);
-                }
-                else {
-                    console.log("receiptHandle is undefined");
-                }
-                receiptHandle = undefined;
-            });
-            app.start();
-        }
-        catch (e) {
-            console.log(e);
-            yield aws_service_1.awsService.SNSNotification(String(e), secrets_1.SPLIT_QUESTION_SNS);
-        }
     });
 }
 /**
@@ -175,17 +46,13 @@ function startQuestionSplitterSqsConsumer() {
     if (force) {
         //스테이징 서버..
         console.log("ALTER SYNC");
-        yield DB_1.db.sync({ alter: false });
-        yield startMetadataExtractSqsConsumer();
-        yield startQuestionSplitterSqsConsumer();
+        yield DB_1.db.sync({ alter: true });
     }
     else {
         //개발 로컬
         console.log("FORCE SYNC");
-        yield DB_1.db.sync({ force: false });
+        yield DB_1.db.sync({ force: true });
         yield syncData();
-        yield startMetadataExtractSqsConsumer();
-        yield startQuestionSplitterSqsConsumer();
     }
 }))();
 //# sourceMappingURL=server.js.map
