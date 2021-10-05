@@ -23,6 +23,7 @@ __decorate([
     __metadata("design:type", String)
 ], Sound.prototype, "soundKey", void 0);
 __decorate([
+    sequelize_typescript_1.PrimaryKey,
     sequelize_typescript_1.ForeignKey(() => dog_model_1.Dog),
     sequelize_typescript_1.Column,
     __metadata("design:type", String)

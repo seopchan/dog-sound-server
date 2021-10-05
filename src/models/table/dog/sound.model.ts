@@ -12,6 +12,7 @@ export class Sound extends Model<Sound> implements SoundSchema {
     @Column
     soundKey: string;
 
+    @PrimaryKey
     @ForeignKey(() => Dog)
     @Column
     dogKey: string;
